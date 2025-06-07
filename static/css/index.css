@@ -1,0 +1,44 @@
+
+.loading-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000; /* 모달보다 위에 올라오도록 충분히 크게 */
+}
+
+/* 체크된 좌석 강조 */
+.form-check-input:checked + .form-check-label {
+  font-weight: bold;
+  color: #0d6efd; /* Bootstrap primary 색상과 통일 */
+}
+
+/* 좌석 컨테이너 그리드 레이아웃 */
+#seat-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* 개별 좌석 박스 스타일 */
+.form-check {
+  width: 4rem;
+  text-align: center;
+}
+
+/* 선택된 행 배경 강조 */
+.table-primary {
+  background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+#dateDropdown {
+  scrollbar-width: thin;
+}
+
+#dateDropdown option {
+  padding: 0.5rem;
+}

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">SRT helper 백오피스</h1>
+
+<div id="macro-form">
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-secondary text-white">
+      <strong>사용 방법</strong>
+    </div>
+    <div class="card-body">
+      <ol class="mb-0 ps-3">
+        <li class="mb-2">
+          <strong>로그인</strong><br>
+          아이디·비밀번호를 입력해주세요.
+        </li>
+        <li class="mb-2">
+          <strong>여정 선택</strong><br>
+          출발역·도착역, 예매 날짜와 출발 시간을 선택하세요.
+        </li>
+        <li class="mb-2">
+          <strong>스케줄 조회</strong><br>
+          “스케줄 조회” 버튼을 눌러 해당 조건의 열차 목록을 불러옵니다.
+        </li>
+        <li class="mb-2">
+          <strong>열차 선택</strong><br>
+          원하는 열차 행을 클릭하면 파란색으로 강조됩니다.
+        </li>
+        <li>
+          <strong>매크로 실행</strong><br>
+          선택이 완료되면 “매크로 실행” 버튼을 눌러 예약을 시작합니다.
+        </li>
+      </ol>
+    </div>
+  </div>
+  <div class="mb-3">
+    <label for="user_id" class="form-label">아이디</label>
+    <input
+      type="text"
+      id="loginField"
+      name="username"
+      autocomplete="username"
+      class="form-control"
+      required
+    />
+  </div>
+  <div class="mb-3">
+    <label for="user_pw" class="form-label">비밀번호</label>
+    <input
+      type="password"
+      id="pwField"
+      name="password"
+      autocomplete="current-password"
+      class="form-control"
+      required
+    />
+  </div>
+    <div class="mb-3">
+    <label for="fromStation" class="form-label">출발역</label>
+    <select id="fromStation" name="from_station" class="form-select" required>
+      <option value="" disabled selected>출발역 선택</option>
+      {% for st in station_list %}
+        <option value="{{ st }}">{{ st }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="mb-3">
+    <label for="toStation" class="form-label">도착역</label>
+    <select id="toStation" name="to_station" class="form-select" required>
+      <option value="" disabled selected>도착역 선택</option>
+      {% for st in station_list %}
+        <option value="{{ st }}">{{ st }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="mb-3">
+    <label for="dateDropdown" class="form-label">예매 날짜</label>
+    <select
+      id="dateDropdown"
+      name="date"        
+      class="form-select mt-2"
+      style="max-height: 200px; overflow-y: auto;"
+      required           
+    ></select>
+  </div>
+  <div class="mb-3">
+    <label for="time" class="form-label">출발 시간</label>
+    <select id="time" name="time" class="form-select" required>
+      <option value="00">00:00</option>
+      <option value="02">02:00</option>
+      <option value="04">04:00</option>
+      <option value="06">06:00</option>
+      <option value="08">08:00</option>
+      <option value="10">10:00</option>
+      <option value="12">12:00</option>
+      <option value="14">14:00</option>
+      <option value="16">16:00</option>
+      <option value="18">18:00</option>
+      <option value="20">20:00</option>
+      <option value="22">22:00</option>
+    </select>
+  </div>
+  <div class="mb-3 text-end">
+    <button type="button" id="fetchSchedule" class="btn btn-secondary">스케줄 조회</button>
+  </div>
+
+  <div id="schedule-container" class="table-responsive mb-3"></div>
+
+  <div class="mb-3 text-end">
+    <label class="form-check-label" for="reserveSwitch">
+      예약 대기 포함
+    </label>
+    <input
+      class="form-check-input"
+      type="checkbox"
+      id="reserveSwitch"
+      name="reserve"
+    />
+  </div>
+
+  <div class="mb-3 text-end">
+    <div class="mb-3 text-end">
+      <button type="button" id="testSiren" class="btn btn-danger">🔊 싸이렌 테스트</button>
+    </div>
+    
+    <button type="submit" id="run-btn" class="btn btn-primary" disabled >매크로 실행</button>
+  </div>
+</div>
+
+<div class="modal fade" id="sirenModal" tabindex="-1" aria-labelledby="sirenModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="sirenModalLabel"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+      </div>
+      <div class="modal-body" id="sirenModalBody">
+        <!-- JS에서 <p> 태그로 채웁니다 -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="mt-5 pt-4 border-top text-muted small">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <h6 class="text-dark">사용 방법</h6>
+        <ul class="list-unstyled">
+          <li>① 로그인 정보 입력</li>
+          <li>② 출발·도착역, 날짜·시간 선택</li>
+          <li>③ “스케줄 조회” 클릭</li>
+          <li>④ 원하는 열차 행 클릭 (파란색 강조)</li>
+          <li>⑤ “매크로 실행” 버튼 클릭</li>
+        </ul>
+      </div>
+      <div class="col-md-4 mb-3">
+        <h6 class="text-dark">개발자 연락처</h6>
+        <ul class="list-unstyled">
+          <li>이메일: ht5172@gmail.com</li>
+          <li>GitHub: 
+            <a href="https://github.com/taek105" target="_blank" class="link-secondary">
+              github.com/taek105
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="text-center pt-3">
+      &copy; 1.0.0 SRT 예약 매크로 백오피스
+    </div>
+  </div>
+</footer>
+
+{% endblock %}
