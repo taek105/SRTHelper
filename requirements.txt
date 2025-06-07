@@ -1,0 +1,6 @@
+selenium
+webdriver_manager
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
