@@ -4,6 +4,8 @@
     <img alt="Static Badge" src="https://img.shields.io/badge/google chrome-latest-white?style=flat&logo=googlechrome&logoColor=white">
 </p>
 
+![2025-06-07 23;48;31](https://github.com/user-attachments/assets/510d5d27-50a4-4cf3-803b-e15a774c2cc7)
+
 매진된 SRT 표의 예매를 도와주는 파이썬 프로그램입니다.  
 PC 환경에서만 실행 가능합니다.  
 https://github.com/kminito/srt_reservation 를 참고했습니다.
