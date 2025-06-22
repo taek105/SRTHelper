@@ -3,11 +3,6 @@ const container = document.getElementById("schedule-container");
 const runBtn = document.getElementById("run-btn");
 const loading = document.getElementById("loadingOverlay");
 
-let sirenAudio = new Audio('/static/siren.mp3');
-sirenAudio.loop   = true;
-sirenAudio.volume = 0;
-
-
 function showLoading() {
   loading.classList.remove("d-none");
 }
@@ -137,38 +132,20 @@ function populateDateDropdown() {
 }
 populateDateDropdown();
 
-const sirenAudio = new Audio('/static/siren.mp3');
-sirenAudio.loop = true;
-sirenAudio.volume = 0;
-
-function unlockAudioContext() {
-  sirenAudio.play()
-    .then(() => {
-      sirenAudio.pause();
-      sirenAudio.currentTime = 0;
-    })
-    .catch(e => {
-      console.warn('사일런트 프리플레이 실패:', e);
-    });
-  document.getElementById('run-btn').removeEventListener('click', unlockAudioContextWrapper);
-}
-
-function unlockAudioContextWrapper() {
-  unlockAudioContext();
-  runMacro();
-}
+ // run 호출
+document.getElementById('run-btn').addEventListener('click', runMacro);
 
 async function runMacro() {
-  const login_id   = document.getElementById('loginField').value;
-  const login_psw  = document.getElementById('pwField').value;
-  const from_stn   = document.getElementById('fromStation').value;
-  const to_stn     = document.getElementById('toStation').value;
-  const date       = document.getElementById('dateDropdown').value;
-  const time       = document.getElementById('time').value;
-  const reserve    = document.getElementById('reserveSwitch').checked;
-  const seatsEls   = Array.from(document.querySelectorAll('input[name="seats"]:checked'));
-  const allSeats   = Array.from(document.querySelectorAll('input[name="seats"]'));
-  const seats      = seatsEls.map(el => allSeats.indexOf(el) + 1);
+  const login_id = document.getElementById('loginField').value;
+  const login_psw = document.getElementById('pwField').value;
+  const from_stn = document.getElementById('fromStation').value;
+  const to_stn = document.getElementById('toStation').value;
+  const date = document.getElementById('dateDropdown').value;
+  const time = document.getElementById('time').value;
+  const reserve = document.getElementById('reserveSwitch').checked;
+  const seatsEls = Array.from(document.querySelectorAll('input[name="seats"]:checked'));
+  const allSeats = Array.from(document.querySelectorAll('input[name="seats"]'));
+  const seats = seatsEls.map(el => allSeats.indexOf(el) + 1);
 
   if (![login_id, login_psw, from_stn, to_stn, date, time].every(Boolean) || seats.length === 0) {
     return alert('모든 필드를 채우고 열차를 최소 하나 선택하세요.');
@@ -214,29 +191,26 @@ function triggerAlarmPopup({ title, messages }) {
   const bodyEl  = document.getElementById('sirenModalBody');
   if (!modalEl || !titleEl || !bodyEl) return;
 
-  titleEl.innerText   = title;
-  bodyEl.innerHTML    = messages.map(msg => `<p>${msg}</p>`).join('');
+  titleEl.innerText = title;
+  bodyEl.innerHTML = messages.map(msg => `<p>${msg}</p>`).join('');
 
-  sirenAudio.volume = 1.0;
-  sirenAudio.play().catch(err => {
-    console.error('알람 사운드 재생 실패:', err);
+  const audio = new Audio('/static/siren.mp3');
+  audio.loop   = true;
+  audio.volume = 1.0;
+  audio.play().catch(() => {
+    alert('브라우저 자동 재생 정책으로 차단되었습니다.\n설정 변경 후 다시 시도해주세요.');
   });
 
   const sirenModal = new bootstrap.Modal(modalEl);
   sirenModal.show();
 
   modalEl.addEventListener('hidden.bs.modal', () => {
-    sirenAudio.pause();
-    sirenAudio.currentTime = 0;
+    audio.pause();
+    audio.currentTime = 0;
   }, { once: true });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const runBtn = document.getElementById('run-btn');
-  if (runBtn) {
-    runBtn.addEventListener('click', unlockAudioContextWrapper);
-  }
-
   const testBtn = document.getElementById('testSiren');
   if (testBtn) {
     testBtn.addEventListener('click', () => {
