@@ -22,16 +22,16 @@ https://github.com/kminito/srt_reservation 를 참고했습니다.
 
 
 ## 사용법
-> 가상 환경을 만드는 것을 추천합니다.
+> 탭을 활성화하지 않으면 예약 성공 알림이 동작하지 않습니다.
 
 ```py
+0. 패키지의 루트 디렉토리로 이동
 1. python -m venv .venv
 2. source .venv/bin/activate or ./.venv/scripts/activate.ps1
 3. pip install -r requirements.txt
 4. python app.py
 5. localhost:8000 접속
 ```
-
 
 
 ## 기타  
