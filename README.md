@@ -12,7 +12,7 @@ https://github.com/kminito/srt_reservation 를 참고했습니다.
 
   
 ## 필요
-
+- 최신 버전의 크롬 드라이버
 - selenium
 - webdriver_manager
 - fastapi
