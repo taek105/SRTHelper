@@ -2,6 +2,7 @@ const fetchBtn = document.getElementById("fetchSchedule");
 const container = document.getElementById("schedule-container");
 const runBtn = document.getElementById("run-btn");
 const loading = document.getElementById("loadingOverlay");
+const dateDropdown = document.getElementById("dateDropdown");
 
 function showLoading() {
   loading.classList.remove("d-none");
