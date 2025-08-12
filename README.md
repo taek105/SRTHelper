@@ -12,14 +12,17 @@ https://github.com/kminito/srt_reservation 를 참고했습니다.
 
   
 ## 필요
-- 최신 버전의 크롬 드라이버
+- Python 3.13
+- 최신 버전의 크롬 브라우저
+
+```
 - selenium
 - webdriver_manager
 - fastapi
 - uvicorn[standard]
 - jinja2
 - python-multipart
-
+```
 
 ## 사용법
 > 탭을 활성화하지 않으면 예약 성공 알림이 동작하지 않습니다.
