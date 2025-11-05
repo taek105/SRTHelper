@@ -1,5 +1,10 @@
 import os
 import time
+
+import random
+import undetected_chromedriver as uc
+from selenium.webdriver import ActionChains
+
 from random import randint
 from datetime import datetime
 from selenium import webdriver
@@ -61,10 +66,10 @@ class SRT:
     def run_driver(self):
         try:
             service = Service()
-            self.driver = webdriver.Chrome(service=service)
+            self.driver = driver = uc.Chrome(headless=False)
         except WebDriverException:
             service = Service(ChromeDriverManager().install())
-            self.driver = webdriver.Chrome(service=service)
+            self.driver = driver = uc.Chrome(headless=False)
 
     def login(self):
         self.driver.get('https://etk.srail.kr/cmc/01/selectLoginForm.do')
@@ -211,10 +216,7 @@ class SRT:
 def get_schedule(dpt_stn, arr_stn, date, tm):
     items = []
     
-    service = Service()
-    opts = Options()
-    opts.add_argument("--headless")
-    driver = webdriver.Chrome(service=service, options=opts)
+    driver = uc.Chrome(headless=False)
     
     try:
         driver.get('https://etk.srail.kr/hpg/hra/01/selectScheduleList.do')
@@ -222,23 +224,32 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
 
         elm_dpt_stn = driver.find_element(By.ID, 'dptRsStnCdNm')
         elm_dpt_stn.clear()
-        elm_dpt_stn.send_keys(dpt_stn)
+        slow_send_keys(elm_dpt_stn, dpt_stn)
+        time.sleep(0.7)
 
         elm_arr_stn = driver.find_element(By.ID, 'arvRsStnCdNm')
         elm_arr_stn.clear()
-        elm_arr_stn.send_keys(arr_stn)
+        slow_send_keys(elm_arr_stn, arr_stn)
+        time.sleep(0.7)
 
-        elm_dpt_dt = driver.find_element(By.ID, "dptDt")
-        driver.execute_script("arguments[0].setAttribute('style','display: True;')", elm_dpt_dt)
-        Select(driver.find_element(By.ID, "dptDt")).select_by_value(date)
+        ## 문제의 구간
+        # elm = WebDriverWait(driver, timeout).until(
+        #     EC.element_to_be_clickable((By.ID, "dptDt"))
+        # )
+        # elm.click()
+        # sel = Select(elm)
+        # sel.select_by_value(date)
 
-        elm_dpt_tm = driver.find_element(By.ID, "dptTm")
-        driver.execute_script("arguments[0].setAttribute('style','display: True;')", elm_dpt_tm)
-        Select(driver.find_element(By.ID, "dptTm")).select_by_visible_text(tm)
+        # elm = WebDriverWait(driver, timeout).until(
+        #     EC.element_to_be_clickable((By.ID, "dptTm"))
+        # )
+        # elm.click()
+        # sel = Select(elm)
+        # sel.select_by_value(tm)
+        ## 여기까지 문제구간
 
+        # 조회 버튼 클릭
         driver.find_element(By.XPATH, "//input[@value='조회하기']").click()
-        driver.implicitly_wait(5)
-        time.sleep(1)
         
         rows = driver.find_elements(By.CSS_SELECTOR,
             "#result-form .tbl_wrap table tbody tr"
@@ -272,6 +283,12 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
                 "status": status
             })
     finally:
-        driver.quit()
-            
-    return items
+        # driver.quit()
+        return items
+
+    # return items
+
+def slow_send_keys(element, text, delay_range=(0.3, 0.7)):
+    for ch in text:
+        element.send_keys(ch)
+        time.sleep(random.uniform(*delay_range))
