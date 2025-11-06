@@ -12,7 +12,7 @@ https://github.com/kminito/srt_reservation 를 참고했습니다.
 
   
 ## 필요
-- Python 3.13
+- ***Python 3.11.****
 - 최신 버전의 크롬 브라우저
 
 ```
@@ -22,10 +22,15 @@ https://github.com/kminito/srt_reservation 를 참고했습니다.
 - uvicorn[standard]
 - jinja2
 - python-multipart
+- undetected-chromedriver
 ```
 
 ## 사용법
-> 탭을 활성화하지 않으면 예약 성공 알림이 동작하지 않습니다.
+- 백오피스 탭을 활성화하지 않으면 예약 성공 알림이 동작하지 않습니다.
+- 도우미가 동작하는 탭을 조작하면 제대로 동작하지 않습니다. 
+    - 창을 가로로 좁게 두어서 상단 네비게이터를 없애는 것을 추천
+    - 포커스를 두지 않는 것 추천
+ 
 
 ```py
 0. 패키지의 루트 디렉토리로 이동
@@ -40,4 +45,3 @@ https://github.com/kminito/srt_reservation 를 참고했습니다.
 ## 기타  
 명절 승차권 예약에는 사용이 불가합니다.   
 과도한 사용은 지양해 주십시오.
-
