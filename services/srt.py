@@ -65,11 +65,9 @@ class SRT:
 
     def run_driver(self):
         try:
-            service = Service()
-            self.driver = driver = uc.Chrome(headless=False)
+            self.driver = uc.Chrome(headless=False)
         except WebDriverException:
-            service = Service(ChromeDriverManager().install())
-            self.driver = driver = uc.Chrome(headless=False)
+            self.driver = uc.Chrome(headless=False)
 
     def login(self):
         self.driver.get('https://etk.srail.kr/cmc/01/selectLoginForm.do')
@@ -96,20 +94,17 @@ class SRT:
 
         elm_dpt_stn = self.driver.find_element(By.ID, 'dptRsStnCdNm')
         elm_dpt_stn.clear()
-        elm_dpt_stn.send_keys(self.dpt_stn)
+        slow_send_keys(elm_dpt_stn, self.dpt_stn)
+        time.sleep(0.7)
 
         elm_arr_stn = self.driver.find_element(By.ID, 'arvRsStnCdNm')
         elm_arr_stn.clear()
-        elm_arr_stn.send_keys(self.arr_stn)
+        slow_send_keys(elm_arr_stn, self.arr_stn)
+        time.sleep(0.7)
 
-        elm_dpt_dt = self.driver.find_element(By.ID, "dptDt")
-        self.driver.execute_script("arguments[0].setAttribute('style','display: True;')", elm_dpt_dt)
-        Select(self.driver.find_element(By.ID, "dptDt")).select_by_value(self.dpt_dt)
-
-        elm_dpt_tm = self.driver.find_element(By.ID, "dptTm")
-        self.driver.execute_script("arguments[0].setAttribute('style','display: True;')", elm_dpt_tm)
-        Select(self.driver.find_element(By.ID, "dptTm")).select_by_visible_text(self.dpt_tm)
-
+        slow_select_keys(self.driver, "dptDt", self.dpt_dt, mode="value")
+        slow_select_keys(self.driver, "dptTm", self.dpt_tm, mode="text")
+        
         print("기차를 조회합니다")
         print(f"출발역:{self.dpt_stn} , 도착역:{self.arr_stn}\n날짜:{self.dpt_dt}, 시간: {self.dpt_tm}시 이후\n")
         target_indexs = ', '.join(f"{i}번" for i in self.target_index)
@@ -165,7 +160,15 @@ class SRT:
         wait = WebDriverWait(self.driver, 120)
         try:
             submit = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@value='조회하기']")))
-            self.driver.execute_script("arguments[0].click();", submit)
+            actions = ActionChains(self.driver)
+
+            # 스크롤 활성화를 위해 ↓키 두 번
+            actions.send_keys(Keys.ARROW_DOWN).pause(0.1)
+            actions.send_keys(Keys.ARROW_DOWN).pause(0.1)
+            # 버튼 포커스 후 Enter
+            actions.move_to_element(submit).click().pause(0.1)
+            actions.send_keys(Keys.ENTER).perform()
+            
             self.cnt_refresh += 1
             print(f"새로고침 {self.cnt_refresh}회")
             self.driver.implicitly_wait(10)
@@ -216,7 +219,7 @@ class SRT:
 def get_schedule(dpt_stn, arr_stn, date, tm):
     items = []
     
-    driver = uc.Chrome(headless=False)
+    driver = uc.Chrome(headless=True)
     
     try:
         driver.get('https://etk.srail.kr/hpg/hra/01/selectScheduleList.do')
@@ -232,21 +235,8 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
         slow_send_keys(elm_arr_stn, arr_stn)
         time.sleep(0.7)
 
-        ## 문제의 구간
-        # elm = WebDriverWait(driver, timeout).until(
-        #     EC.element_to_be_clickable((By.ID, "dptDt"))
-        # )
-        # elm.click()
-        # sel = Select(elm)
-        # sel.select_by_value(date)
-
-        # elm = WebDriverWait(driver, timeout).until(
-        #     EC.element_to_be_clickable((By.ID, "dptTm"))
-        # )
-        # elm.click()
-        # sel = Select(elm)
-        # sel.select_by_value(tm)
-        ## 여기까지 문제구간
+        slow_select_keys(driver, "dptDt", date, mode="value")
+        slow_select_keys(driver, "dptTm", tm, mode="text")
 
         # 조회 버튼 클릭
         driver.find_element(By.XPATH, "//input[@value='조회하기']").click()
@@ -283,12 +273,55 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
                 "status": status
             })
     finally:
-        # driver.quit()
-        return items
+        driver.quit()
 
-    # return items
+    return items
 
-def slow_send_keys(element, text, delay_range=(0.3, 0.7)):
+def slow_send_keys(element, text, delay_range=(0.05, 0.1)):
     for ch in text:
         element.send_keys(ch)
         time.sleep(random.uniform(*delay_range))
+        
+def slow_select_keys(
+    driver,
+    element_id: str,
+    target: str,
+    mode: str = "value",  # "value" or "text"
+    delay_range=(0.05, 0.1)
+):
+    """드롭다운(select)에 사람이 키보드로 선택하듯 입력하는 함수
+
+    Args:
+        driver: selenium webdriver
+        element_id: select 태그 id
+        target: 선택할 value 또는 text
+        mode: 'value'이면 value 매칭, 'text'이면 visible_text 매칭
+    """
+    sel = driver.find_element(By.ID, element_id)
+    options = sel.find_elements(By.TAG_NAME, "option")
+
+    # 목표 옵션 찾기
+    target_idx = None
+    for i, opt in enumerate(options):
+        value = opt.get_attribute("value") if mode == "value" else opt.text.strip()
+        if value == target:
+            target_idx = i
+            break
+    if target_idx is None:
+        raise ValueError(f"{mode} '{target}' not found in <select id='{element_id}'>")
+
+    # 현재 선택 인덱스
+    cur_idx = next((i for i, o in enumerate(options) if o.is_selected()), 0)
+
+    # 포커스 및 드롭다운 열기
+    ActionChains(driver).move_to_element(sel).click().perform()
+    time.sleep(random.uniform(*delay_range))
+
+    # 현재 선택에서 목표로 이동
+    delta = target_idx - cur_idx
+    key = Keys.ARROW_DOWN if delta > 0 else Keys.ARROW_UP
+    for _ in range(abs(delta)):
+        ActionChains(driver).send_keys_to_element(sel, key).perform()
+        time.sleep(random.uniform(*delay_range))
+
+    ActionChains(driver).send_keys_to_element(sel, Keys.ENTER).perform()
