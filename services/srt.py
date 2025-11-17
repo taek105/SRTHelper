@@ -273,6 +273,7 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
                 "status": status
             })
     finally:
+        time.sleep(1.5)
         driver.quit()
 
     return items
