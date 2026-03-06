@@ -65,9 +65,9 @@ class SRT:
 
     def run_driver(self):
         try:
-            self.driver = uc.Chrome(headless=False)
+            self.driver = uc.Chrome(version_main=145, headless=False)
         except WebDriverException:
-            self.driver = uc.Chrome(headless=False)
+            self.driver = uc.Chrome(version_main=145, headless=False)
 
     def login(self):
         self.driver.get('https://etk.srail.kr/cmc/01/selectLoginForm.do')
@@ -104,6 +104,8 @@ class SRT:
 
         slow_select_keys(self.driver, "dptDt", self.dpt_dt, mode="value")
         slow_select_keys(self.driver, "dptTm", self.dpt_tm, mode="text")
+        
+        self.driver.find_element(By.ID, "trnGpCd300").click()
         
         print("기차를 조회합니다")
         print(f"출발역:{self.dpt_stn} , 도착역:{self.arr_stn}\n날짜:{self.dpt_dt}, 시간: {self.dpt_tm}시 이후\n")
@@ -219,7 +221,7 @@ class SRT:
 def get_schedule(dpt_stn, arr_stn, date, tm):
     items = []
     
-    driver = uc.Chrome(headless=True)
+    driver = uc.Chrome(version_main=145, headless=True)
     
     try:
         driver.get('https://etk.srail.kr/hpg/hra/01/selectScheduleList.do')
@@ -237,6 +239,8 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
 
         slow_select_keys(driver, "dptDt", date, mode="value")
         slow_select_keys(driver, "dptTm", tm, mode="text")
+        
+        driver.find_element(By.ID, "trnGpCd300").click()
 
         # 조회 버튼 클릭
         driver.find_element(By.XPATH, "//input[@value='조회하기']").click()
