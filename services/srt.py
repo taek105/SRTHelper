@@ -24,11 +24,6 @@ from selenium.common.exceptions import (
 )
 from services.exceptions import InvalidStationNameError, InvalidDateError, InvalidDateFormatError  
 
-
-station_list = ["수서", "동탄", "평택지제", "천안아산", "오송", "대전", "김천구미", "동대구",
-                "신경주", "울산(통도사)", "부산", "공주", "익산", "정읍", "광주송정", "나주", "목포"]
-
-
 class SRT:
     def __init__(self, dpt_stn, arr_stn, dpt_dt, dpt_tm, target_index, reserve_waiting=False):
         self.login_id = None
@@ -48,10 +43,6 @@ class SRT:
         self.check_input()
 
     def check_input(self):
-        if self.dpt_stn not in station_list:
-            raise InvalidStationNameError(f"출발역 오류. '{self.dpt_stn}' 은/는 목록에 없습니다.")
-        if self.arr_stn not in station_list:
-            raise InvalidStationNameError(f"도착역 오류. '{self.arr_stn}' 은/는 목록에 없습니다.")
         if not str(self.dpt_dt).isnumeric():
             raise InvalidDateFormatError("날짜는 숫자로만 이루어져야 합니다.")
         try:
