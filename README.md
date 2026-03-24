@@ -1,6 +1,6 @@
 # SRT helper 
 <p>
-    <img alt="Static Badge" src="https://img.shields.io/badge/python-3.13-blue?style=flat&logo=python&logoColor=white">
+    <img alt="Static Badge" src="https://img.shields.io/badge/python-3.11-blue?style=flat&logo=python&logoColor=white">
     <img alt="Static Badge" src="https://img.shields.io/badge/google chrome-latest-white?style=flat&logo=googlechrome&logoColor=white">
 </p>
 
