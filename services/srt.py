@@ -56,9 +56,9 @@ class SRT:
 
     def run_driver(self):
         try:
-            self.driver = uc.Chrome(version_main=145, headless=False)
+            self.driver = uc.Chrome(headless=False)
         except WebDriverException:
-            self.driver = uc.Chrome(version_main=145, headless=False)
+            self.driver = uc.Chrome(headless=False)
 
     def login(self):
         self.driver.get('https://etk.srail.kr/cmc/01/selectLoginForm.do')
@@ -80,8 +80,8 @@ class SRT:
             return False
 
     def go_search(self):
+        self.driver.implicitly_wait(4)
         self.driver.get('https://etk.srail.kr/hpg/hra/01/selectScheduleList.do')
-        self.driver.implicitly_wait(5)
 
         elm_dpt_stn = self.driver.find_element(By.ID, 'dptRsStnCdNm')
         elm_dpt_stn.clear()
@@ -212,11 +212,11 @@ class SRT:
 def get_schedule(dpt_stn, arr_stn, date, tm):
     items = []
     
-    driver = uc.Chrome(version_main=145, headless=True)
+    driver = uc.Chrome(headless=False)
     
     try:
+        driver.implicitly_wait(4)
         driver.get('https://etk.srail.kr/hpg/hra/01/selectScheduleList.do')
-        driver.implicitly_wait(5)
 
         elm_dpt_stn = driver.find_element(By.ID, 'dptRsStnCdNm')
         elm_dpt_stn.clear()
@@ -285,39 +285,24 @@ def slow_select_keys(
     mode: str = "value",  # "value" or "text"
     delay_range=(0.05, 0.1)
 ):
-    """드롭다운(select)에 사람이 키보드로 선택하듯 입력하는 함수
-
-    Args:
-        driver: selenium webdriver
-        element_id: select 태그 id
-        target: 선택할 value 또는 text
-        mode: 'value'이면 value 매칭, 'text'이면 visible_text 매칭
-    """
     sel = driver.find_element(By.ID, element_id)
     options = sel.find_elements(By.TAG_NAME, "option")
 
-    # 목표 옵션 찾기
+    # 타겟 인덱스 찾기
     target_idx = None
     for i, opt in enumerate(options):
         value = opt.get_attribute("value") if mode == "value" else opt.text.strip()
         if value == target:
             target_idx = i
             break
+
     if target_idx is None:
         raise ValueError(f"{mode} '{target}' not found in <select id='{element_id}'>")
 
-    # 현재 선택 인덱스
     cur_idx = next((i for i, o in enumerate(options) if o.is_selected()), 0)
 
-    # 포커스 및 드롭다운 열기
-    ActionChains(driver).move_to_element(sel).click().perform()
+    sel.click()
     time.sleep(random.uniform(*delay_range))
-
-    # 현재 선택에서 목표로 이동
-    delta = target_idx - cur_idx
-    key = Keys.ARROW_DOWN if delta > 0 else Keys.ARROW_UP
-    for _ in range(abs(delta)):
-        ActionChains(driver).send_keys_to_element(sel, key).perform()
-        time.sleep(random.uniform(*delay_range))
-
-    ActionChains(driver).send_keys_to_element(sel, Keys.ENTER).perform()
+    print("start")
+    time.sleep(8)
+    print("end")
