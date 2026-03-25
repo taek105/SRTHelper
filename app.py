@@ -15,10 +15,12 @@ STATIONS = ["수서", "동탄", "평택지제", "천안아산", "오송", "대�
 
 @app.get("/", response_class=HTMLResponse)
 def get_form(request: Request):
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "station_list": STATIONS
-    })
+    return templates.TemplateResponse(
+        name="index.html",
+        request=request,
+        context={
+            "station_list": STATIONS
+        })
 
 if __name__ == "__main__":
     import uvicorn
