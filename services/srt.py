@@ -56,9 +56,9 @@ class SRT:
 
     def run_driver(self):
         try:
-            self.driver = uc.Chrome(headless=False)
+            self.driver = uc.Chrome(version_main=145, headless=False)
         except WebDriverException:
-            self.driver = uc.Chrome(headless=False)
+            self.driver = uc.Chrome(version_main=145, headless=False)
 
     def login(self):
         self.driver.get('https://etk.srail.kr/cmc/01/selectLoginForm.do')
@@ -212,7 +212,7 @@ class SRT:
 def get_schedule(dpt_stn, arr_stn, date, tm):
     items = []
     
-    driver = uc.Chrome(headless=False)
+    driver = uc.Chrome(version_main=145, headless=False)
     
     try:
         driver.implicitly_wait(4)
@@ -282,13 +282,14 @@ def slow_select_keys(
     driver,
     element_id: str,
     target: str,
-    mode: str = "value",  # "value" or "text"
+    mode: str = "value",
     delay_range=(0.05, 0.1)
 ):
+    import pyautogui
+
     sel = driver.find_element(By.ID, element_id)
     options = sel.find_elements(By.TAG_NAME, "option")
 
-    # 타겟 인덱스 찾기
     target_idx = None
     for i, opt in enumerate(options):
         value = opt.get_attribute("value") if mode == "value" else opt.text.strip()
@@ -303,6 +304,18 @@ def slow_select_keys(
 
     sel.click()
     time.sleep(random.uniform(*delay_range))
-    print("start")
-    time.sleep(8)
-    print("end")
+
+    delta = target_idx - cur_idx
+    if delta == 0:
+        pyautogui.press("enter")
+        time.sleep(random.uniform(*delay_range))
+        return
+
+    key = "down" if delta > 0 else "up"
+
+    for _ in range(abs(delta)):
+        pyautogui.press(key)
+        time.sleep(random.uniform(*delay_range))
+
+    pyautogui.press("enter")
+    time.sleep(1.5)
