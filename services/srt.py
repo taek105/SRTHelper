@@ -56,9 +56,9 @@ class SRT:
 
     def run_driver(self):
         try:
-            self.driver = uc.Chrome(version_main=145, headless=False)
+            self.driver = uc.Chrome(version_main=147, headless=False)
         except WebDriverException:
-            self.driver = uc.Chrome(version_main=145, headless=False)
+            self.driver = uc.Chrome(version_main=147, headless=False)
 
     def login(self):
         self.driver.get('https://etk.srail.kr/cmc/01/selectLoginForm.do')
@@ -212,7 +212,7 @@ class SRT:
 def get_schedule(dpt_stn, arr_stn, date, tm):
     items = []
     
-    driver = uc.Chrome(version_main=145, headless=True)
+    driver = uc.Chrome(version_main=147, headless=True)
     
     try:
         driver.get('https://etk.srail.kr/hpg/hra/01/selectScheduleList.do')
