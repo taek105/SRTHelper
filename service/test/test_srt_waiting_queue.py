@@ -134,29 +134,23 @@ class WaitingQueueCallSiteTest(unittest.TestCase):
     @patch.object(srt_module, "ActionChains")
     @patch.object(srt_module, "WebDriverWait")
     @patch.object(srt_module, "wait_for_waiting_queue")
-    def test_refresh_result_waits_for_queue_after_submit(
+    def test_refresh_result_skips_waiting_queue_detection(
         self,
         wait_for_queue,
         web_driver_wait,
         action_chains,
         _sleep,
     ):
-        submit = MagicMock()
-        web_driver_wait.return_value.until.return_value = submit
+        web_driver_wait.return_value.until.return_value = MagicMock()
         actions = action_chains.return_value
         actions.send_keys.return_value = actions
         actions.pause.return_value = actions
         actions.move_to_element.return_value = actions
         actions.click.return_value = actions
-        previous_row = MagicMock()
-        self.driver.find_elements.return_value = [previous_row]
 
         self.srt.refresh_result()
 
-        wait_for_queue.assert_called_once_with(
-            self.driver,
-            previous_rows=[previous_row],
-        )
+        wait_for_queue.assert_not_called()
 
     @patch.object(srt_module.time, "sleep")
     @patch.object(srt_module, "slow_select_keys")
@@ -164,7 +158,7 @@ class WaitingQueueCallSiteTest(unittest.TestCase):
     @patch.object(srt_module, "wait_for_waiting_queue")
     @patch.object(srt_module.uc, "Chrome")
     @patch.object(srt_module, "install_arm_chromedriver")
-    def test_get_schedule_waits_for_queue_after_submit(
+    def test_get_schedule_skips_waiting_queue_detection(
         self,
         install_chromedriver,
         chrome,
@@ -180,9 +174,8 @@ class WaitingQueueCallSiteTest(unittest.TestCase):
         result = srt_module.get_schedule("수서", "부산", "20260814", "00")
 
         self.assertEqual([], result)
-        wait_for_queue.assert_called_once_with(driver)
+        wait_for_queue.assert_not_called()
         driver.quit.assert_called_once_with()
-
 
 if __name__ == "__main__":
     unittest.main()

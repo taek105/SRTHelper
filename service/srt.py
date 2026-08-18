@@ -21,9 +21,15 @@ from selenium.common.exceptions import (
     ElementClickInterceptedException, 
     StaleElementReferenceException, 
     WebDriverException, 
-    NoAlertPresentException
+    NoAlertPresentException,
+    TimeoutException,
 )
-from service.exceptions import InvalidStationNameError, InvalidDateError, InvalidDateFormatError  
+from service.exceptions import (
+    InvalidStationNameError,
+    InvalidDateError,
+    InvalidDateFormatError,
+    LoginFailedError,
+)
 
 
 def install_arm_chromedriver():
@@ -36,8 +42,9 @@ def install_arm_chromedriver():
     return driver_path
 
 
-WAITING_QUEUE_TIMEOUT = 30 * 60
+WAITING_QUEUE_TIMEOUT = 1 * 60
 WAITING_QUEUE_POLL_FREQUENCY = 0.5
+LOGIN_WAIT_TIMEOUT = 15
 SCHEDULE_RESULT_SELECTOR = "#result-form .tbl_wrap table tbody tr"
 WAITING_QUEUE_SELECTORS = (
     "#NetFunnel_Loading_Popup",
@@ -93,10 +100,9 @@ def is_waiting_queue_visible(driver):
     return queue_visible
 
 
-def wait_for_waiting_queue(driver, previous_rows=None):
+def wait_for_waiting_queue(driver):
     """Wait until a queue clears and a new schedule result is ready."""
     queue_detected = False
-    previous_rows = previous_rows or []
 
     def schedule_is_ready(current_driver):
         nonlocal queue_detected
@@ -105,14 +111,6 @@ def wait_for_waiting_queue(driver, previous_rows=None):
         if queue_visible:
             queue_detected = True
             return False
-
-        if previous_rows:
-            previous_rows_replaced = all(
-                EC.staleness_of(row)(current_driver)
-                for row in previous_rows
-            )
-            if not previous_rows_replaced:
-                return False
 
         return result_row_count > 0
 
@@ -181,11 +179,28 @@ class SRT:
         return self.driver
 
     def check_login(self):
-        menu_text = self.driver.find_element(By.CSS_SELECTOR, "#wrap > div.header.header-e > div.global.clear > div").text
-        if "환영합니다" in menu_text:
-            return True
-        else:
-            return False
+        def has_welcome_message(driver):
+            welcome_messages = driver.find_elements(
+                By.CSS_SELECTOR,
+                "#krds-header .header-actions > p.my-name",
+            )
+            return any(
+                "님환영합니다!" in "".join(
+                    (message.get_attribute("textContent") or "").split()
+                )
+                for message in welcome_messages
+            )
+
+        try:
+            WebDriverWait(self.driver, LOGIN_WAIT_TIMEOUT).until(
+                has_welcome_message
+            )
+        except TimeoutException as exc:
+            raise LoginFailedError(
+                "SRT 로그인 성공 여부를 확인할 수 없습니다."
+            ) from exc
+
+        return True
 
     def go_search(self):
         self.driver.implicitly_wait(4)
@@ -262,10 +277,6 @@ class SRT:
         wait = WebDriverWait(self.driver, 120)
         try:
             submit = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@value='조회하기']")))
-            previous_rows = self.driver.find_elements(
-                By.CSS_SELECTOR,
-                SCHEDULE_RESULT_SELECTOR,
-            )
             actions = ActionChains(self.driver)
 
             # 스크롤 활성화를 위해 ↓키 두 번
@@ -274,7 +285,6 @@ class SRT:
             # 버튼 포커스 후 Enter
             actions.move_to_element(submit).click().pause(0.1)
             actions.send_keys(Keys.ENTER).perform()
-            wait_for_waiting_queue(self.driver, previous_rows=previous_rows)
             
             self.cnt_refresh += 1
             print(f"새로고침 {self.cnt_refresh}회")
@@ -319,6 +329,7 @@ class SRT:
         self.run_driver()
         self.set_log_info(login_id, login_psw)
         self.login()
+        self.check_login()
         self.go_search()
         self.check_result()
         
@@ -351,7 +362,6 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
 
         # 조회 버튼 클릭
         driver.find_element(By.XPATH, "//input[@value='조회하기']").click()
-        wait_for_waiting_queue(driver)
         
         rows = driver.find_elements(By.CSS_SELECTOR, SCHEDULE_RESULT_SELECTOR)
         for row in rows:
