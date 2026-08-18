@@ -22,7 +22,7 @@ from selenium.common.exceptions import (
     WebDriverException, 
     NoAlertPresentException
 )
-from services.exceptions import InvalidStationNameError, InvalidDateError, InvalidDateFormatError  
+from service.exceptions import InvalidStationNameError, InvalidDateError, InvalidDateFormatError  
 
 class SRT:
     def __init__(self, dpt_stn, arr_stn, dpt_dt, dpt_tm, target_index, reserve_waiting=False):

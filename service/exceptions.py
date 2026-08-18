@@ -9,4 +9,3 @@ class InvalidDateError(Exception):
 
 class InvalidTimeFormatError(Exception):
     pass
-

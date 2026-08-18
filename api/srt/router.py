@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from api.srt.endpoints.srt_router import router
+from api.srt.endpoint.srt_router import router
 
 api_router = APIRouter()
 

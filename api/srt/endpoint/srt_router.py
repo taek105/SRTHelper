@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Form, Query
-from api.srt.controllers.srt_controller import run_macro_logic, run_get_schedule
+from api.srt.controller.srt_controller import run_macro_logic, run_get_schedule
 
 router = APIRouter()
 

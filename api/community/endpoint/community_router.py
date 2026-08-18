@@ -1,0 +1,1 @@
+"""Community API router endpoint."""

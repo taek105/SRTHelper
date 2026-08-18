@@ -1,4 +1,4 @@
-from services.srt import SRT, get_schedule
+from service.srt import SRT, get_schedule
 
 def run_macro_logic(
     login_id: str, 
