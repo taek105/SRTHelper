@@ -1,4 +1,5 @@
 import os
+import subprocess
 import time
 
 import random
@@ -23,6 +24,106 @@ from selenium.common.exceptions import (
     NoAlertPresentException
 )
 from service.exceptions import InvalidStationNameError, InvalidDateError, InvalidDateFormatError  
+
+
+def install_arm_chromedriver():
+    driver_path = ChromeDriverManager().install()
+    uc.Patcher(executable_path=driver_path).auto()
+    subprocess.run(
+        ["codesign", "--force", "--sign", "-", driver_path],
+        check=True,
+    )
+    return driver_path
+
+
+WAITING_QUEUE_TIMEOUT = 30 * 60
+WAITING_QUEUE_POLL_FREQUENCY = 0.5
+SCHEDULE_RESULT_SELECTOR = "#result-form .tbl_wrap table tbody tr"
+WAITING_QUEUE_SELECTORS = (
+    "#NetFunnel_Loading_Popup",
+    "[id^='NetFunnel_Loading_Popup_']",
+    "iframe[id*='NetFunnel' i]",
+    "iframe[src*='netfunnel' i]",
+)
+WAITING_QUEUE_TEXT_MARKERS = (
+    "현재 접속자가 많아",
+    "접속 대기 중",
+    "기다리시면",
+    "예상 대기시간",
+    "대기자 수",
+    "나의 대기 순서",
+)
+
+
+def get_schedule_page_state(driver):
+    """Return the waiting-queue visibility and current schedule row count."""
+    queue_element_visible, visible_text, result_row_count = driver.execute_script(
+        """
+        const selectors = arguments[0];
+        const resultSelector = arguments[1];
+        const isVisible = (element) => {
+            const style = window.getComputedStyle(element);
+            return style.display !== 'none'
+                && style.visibility !== 'hidden'
+                && Number(style.opacity) !== 0
+                && element.getClientRects().length > 0;
+        };
+
+        const queueElements = Array.from(document.querySelectorAll(selectors));
+        return [
+            queueElements.some(isVisible),
+            document.body?.innerText || '',
+            document.querySelectorAll(resultSelector).length,
+        ];
+        """,
+        ", ".join(WAITING_QUEUE_SELECTORS),
+        SCHEDULE_RESULT_SELECTOR,
+    )
+    normalized_text = "".join(visible_text.split())
+    has_queue_text = any(
+        "".join(marker.split()) in normalized_text
+        for marker in WAITING_QUEUE_TEXT_MARKERS
+    )
+    return bool(queue_element_visible or has_queue_text), result_row_count
+
+
+def is_waiting_queue_visible(driver):
+    """Return whether a visible NetFUNNEL waiting queue is on the page."""
+    queue_visible, _ = get_schedule_page_state(driver)
+    return queue_visible
+
+
+def wait_for_waiting_queue(driver, previous_rows=None):
+    """Wait until a queue clears and a new schedule result is ready."""
+    queue_detected = False
+    previous_rows = previous_rows or []
+
+    def schedule_is_ready(current_driver):
+        nonlocal queue_detected
+
+        queue_visible, result_row_count = get_schedule_page_state(current_driver)
+        if queue_visible:
+            queue_detected = True
+            return False
+
+        if previous_rows:
+            previous_rows_replaced = all(
+                EC.staleness_of(row)(current_driver)
+                for row in previous_rows
+            )
+            if not previous_rows_replaced:
+                return False
+
+        return result_row_count > 0
+
+    WebDriverWait(
+        driver,
+        WAITING_QUEUE_TIMEOUT,
+        poll_frequency=WAITING_QUEUE_POLL_FREQUENCY,
+    ).until(schedule_is_ready)
+
+    return queue_detected
+
 
 class SRT:
     def __init__(self, dpt_stn, arr_stn, dpt_dt, dpt_tm, target_index, reserve_waiting=False):
@@ -55,10 +156,17 @@ class SRT:
         self.login_psw = login_psw
 
     def run_driver(self):
+        driver_path = install_arm_chromedriver()
         try:
-            self.driver = uc.Chrome(version_main=145, headless=False)
+            self.driver = uc.Chrome(
+                driver_executable_path=driver_path,
+                headless=False,
+            )
         except WebDriverException:
-            self.driver = uc.Chrome(version_main=145, headless=False)
+            self.driver = uc.Chrome(
+                driver_executable_path=driver_path,
+                headless=False,
+            )
 
     def login(self):
         self.driver.get('https://etk.srail.kr/cmc/01/selectLoginForm.do')
@@ -211,8 +319,9 @@ class SRT:
 
 def get_schedule(dpt_stn, arr_stn, date, tm):
     items = []
-    
-    driver = uc.Chrome(version_main=145, headless=False)
+
+    driver_path = install_arm_chromedriver()
+    driver = uc.Chrome(driver_executable_path=driver_path, headless=False)
     
     try:
         driver.implicitly_wait(4)
