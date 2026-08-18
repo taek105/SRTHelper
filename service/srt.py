@@ -213,6 +213,7 @@ class SRT:
         print(f"예약 대기 사용: {self.reserve_waiting}")
 
         self.driver.find_element(By.XPATH, "//input[@value='조회하기']").click()
+        wait_for_waiting_queue(self.driver)
         self.driver.implicitly_wait(5)
         time.sleep(1)
 
@@ -261,6 +262,10 @@ class SRT:
         wait = WebDriverWait(self.driver, 120)
         try:
             submit = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@value='조회하기']")))
+            previous_rows = self.driver.find_elements(
+                By.CSS_SELECTOR,
+                SCHEDULE_RESULT_SELECTOR,
+            )
             actions = ActionChains(self.driver)
 
             # 스크롤 활성화를 위해 ↓키 두 번
@@ -269,11 +274,13 @@ class SRT:
             # 버튼 포커스 후 Enter
             actions.move_to_element(submit).click().pause(0.1)
             actions.send_keys(Keys.ENTER).perform()
+            wait_for_waiting_queue(self.driver, previous_rows=previous_rows)
             
             self.cnt_refresh += 1
             print(f"새로고침 {self.cnt_refresh}회")
             self.driver.implicitly_wait(10)
-            time.sleep(1)
+            time.sleep(random.uniform(0.5, 1.5))
+
         except StaleElementReferenceException:
             print("요소가 더 이상 유효하지 않음. 다시 시도합니다.")
             self.refresh_result()
@@ -305,7 +312,7 @@ class SRT:
                     if self.reserve_ticket(reservation, i):
                         return True
 
-            time.sleep(randint(2, 4))
+            time.sleep(randint(1, 2))
             self.refresh_result()            
 
     def run(self, login_id, login_psw):
@@ -344,10 +351,9 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
 
         # 조회 버튼 클릭
         driver.find_element(By.XPATH, "//input[@value='조회하기']").click()
+        wait_for_waiting_queue(driver)
         
-        rows = driver.find_elements(By.CSS_SELECTOR,
-            "#result-form .tbl_wrap table tbody tr"
-        )
+        rows = driver.find_elements(By.CSS_SELECTOR, SCHEDULE_RESULT_SELECTOR)
         for row in rows:
             # 열차번호: hidden input[name^=trnNo]
             trn_no = row.find_element(
