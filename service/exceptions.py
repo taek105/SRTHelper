@@ -9,3 +9,7 @@ class InvalidDateError(Exception):
 
 class InvalidTimeFormatError(Exception):
     pass
+
+
+class LoginFailedError(Exception):
+    pass
