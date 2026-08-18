@@ -8,7 +8,6 @@
 
 매진된 SRT 표의 예매를 도와주는 파이썬 프로그램입니다.  
 PC 환경에서만 실행 가능합니다.  
-https://github.com/kminito/srt_reservation 를 참고했습니다.
 
   
 ## 필요
