@@ -279,7 +279,16 @@ async function runMacro() {
       method: 'POST',
       body: params
     });
-    if (!res.ok) throw new Error(res.statusText);
+    if (!res.ok) {
+      let message = res.statusText;
+      try {
+        const error = await res.json();
+        message = error.detail || message;
+      } catch {
+        // JSON 응답이 아니면 HTTP 상태 메시지를 사용한다.
+      }
+      throw new Error(message);
+    }
 
     const success = await res.json();
     if (success) {

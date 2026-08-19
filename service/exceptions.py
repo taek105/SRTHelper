@@ -13,3 +13,7 @@ class InvalidTimeFormatError(Exception):
 
 class LoginFailedError(Exception):
     pass
+
+
+class BrowserWindowClosedError(Exception):
+    pass

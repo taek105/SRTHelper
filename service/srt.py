@@ -19,12 +19,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import ( 
     ElementClickInterceptedException, 
+    InvalidSessionIdException,
     StaleElementReferenceException, 
     WebDriverException, 
     NoAlertPresentException,
+    NoSuchWindowException,
     TimeoutException,
 )
 from service.exceptions import (
+    BrowserWindowClosedError,
     InvalidStationNameError,
     InvalidDateError,
     InvalidDateFormatError,
@@ -305,7 +308,7 @@ class SRT:
             return True
 
     def check_result(self):
-        wait = WebDriverWait(self.driver, 120) 
+        wait = WebDriverWait(self.driver, 120)
         while not self.is_booked:
             for i in self.target_index:
                 try:
@@ -316,24 +319,29 @@ class SRT:
                     reservation = "매진"
 
                 if self.book_ticket(standard_seat, i):
-                    return True                   
+                    return True
 
                 if self.reserve_waiting:
                     if self.reserve_ticket(reservation, i):
                         return True
 
             time.sleep(randint(1, 2))
-            self.refresh_result()            
+            self.refresh_result()
 
     def run(self, login_id, login_psw):
-        self.run_driver()
-        self.set_log_info(login_id, login_psw)
-        self.login()
-        self.check_login()
-        self.go_search()
-        self.check_result()
-        
-        return self.is_booked
+        try:
+            self.run_driver()
+            self.set_log_info(login_id, login_psw)
+            self.login()
+            self.check_login()
+            self.go_search()
+            self.check_result()
+
+            return self.is_booked
+        except (NoSuchWindowException, InvalidSessionIdException) as exc:
+            error_message = "브라우저 창이 닫혀 매크로를 종료합니다."
+            print(f"[매크로 종료] {error_message}")
+            raise BrowserWindowClosedError(error_message) from exc
 
 def get_schedule(dpt_stn, arr_stn, date, tm):
     items = []

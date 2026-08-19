@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Form, Query
+from fastapi import APIRouter, Form, HTTPException, Query
 from api.srt.controller.srt_controller import run_macro_logic, run_get_schedule
+from service.exceptions import BrowserWindowClosedError
 
 router = APIRouter()
 
@@ -15,16 +16,19 @@ def post_run(
     reserve: bool              = Form(False),
     seats: list[int]           = Form([])
 ) -> bool:
-    return run_macro_logic(
-        login_id=login_id,
-        login_psw=login_psw,
-        dpt_stn=from_station,
-        arr_stn=to_station,
-        dpt_dt=date,
-        dpt_tm=time,
-        target=seats,
-        want_reserve=reserve,
-    )
+    try:
+        return run_macro_logic(
+            login_id=login_id,
+            login_psw=login_psw,
+            dpt_stn=from_station,
+            arr_stn=to_station,
+            dpt_dt=date,
+            dpt_tm=time,
+            target=seats,
+            want_reserve=reserve,
+        )
+    except BrowserWindowClosedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     
 
 
