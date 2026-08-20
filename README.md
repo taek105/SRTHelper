@@ -1,5 +1,9 @@
 # SRT helper 
 <p>
+    <img width="128" height="128" alt="image" src="https://github.com/user-attachments/assets/2f700449-a605-43fa-a2b2-bd3d7a2eb2e6">
+</p>
+
+<p>
     <img alt="Static Badge" src="https://img.shields.io/badge/python-3.11-blue?style=flat&logo=python&logoColor=white">
     <img alt="Static Badge" src="https://img.shields.io/badge/google chrome-latest-white?style=flat&logo=googlechrome&logoColor=white">
 </p>
