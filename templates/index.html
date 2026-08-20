@@ -32,6 +32,28 @@
       </ol>
     </div>
   </div>
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
+      <div>
+        <strong>카카오톡 예매 알림</strong>
+        <div class="mt-1">
+          <span id="kakao-status" class="badge text-bg-secondary">연결 확인 중</span>
+          <span class="text-muted small ms-1">예매 성공 시 나와의 채팅방으로 알려드립니다.</span>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a id="kakao-login-btn" href="/auth/kakao/login" class="btn kakao-login-btn">
+          카카오 로그인
+        </a>
+        <button type="button" id="kakao-test-btn" class="btn btn-outline-secondary d-none">
+          알림 테스트
+        </button>
+        <button type="button" id="kakao-disconnect-btn" class="btn btn-outline-danger d-none">
+          로그아웃
+        </button>
+      </div>
+    </div>
+  </div>
   <div class="mb-3">
     <label for="user_id" class="form-label">아이디</label>
     <input

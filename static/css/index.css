@@ -67,3 +67,15 @@
   padding-right: 0.5rem;
   line-height: 1;
 }
+
+.kakao-login-btn {
+  background-color: #fee500;
+  border-color: #fee500;
+  color: #191919;
+}
+
+.kakao-login-btn:hover {
+  background-color: #ead300;
+  border-color: #ead300;
+  color: #191919;
+}

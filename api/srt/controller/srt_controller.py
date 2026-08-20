@@ -1,4 +1,6 @@
 from service.srt import SRT, get_schedule
+from service.kakao import notify_booking_success
+
 
 def run_macro_logic(
     login_id: str, 
@@ -8,10 +10,20 @@ def run_macro_logic(
     dpt_dt: str,
     dpt_tm: str,
     target: list[int],
-    want_reserve: bool) -> dict:
+    want_reserve: bool) -> bool:
 
     srt = SRT(dpt_stn, arr_stn, dpt_dt, dpt_tm, target, want_reserve)
-    return srt.run(login_id, login_psw)
+    is_booked = srt.run(login_id, login_psw)
+
+    if is_booked:
+        notify_booking_success(
+            from_station=dpt_stn,
+            to_station=arr_stn,
+            departure_date=dpt_dt,
+            departure_time=dpt_tm,
+        )
+
+    return is_booked
     
     
 def run_get_schedule(dpt_stn, arr_stn, date, tm):

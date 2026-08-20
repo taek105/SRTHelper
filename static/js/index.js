@@ -332,8 +332,70 @@ function triggerAlarmPopup({ title, messages }) {
   }, { once: true });
 }
 
+async function updateKakaoConnectionStatus() {
+  const statusEl = document.getElementById("kakao-status");
+  const loginBtn = document.getElementById("kakao-login-btn");
+  const testBtn = document.getElementById("kakao-test-btn");
+  const disconnectBtn = document.getElementById("kakao-disconnect-btn");
+  if (!statusEl || !loginBtn || !testBtn || !disconnectBtn) return;
+
+  try {
+    const response = await fetch("/auth/kakao/status");
+    if (!response.ok) throw new Error(response.statusText);
+    const { connected } = await response.json();
+
+    statusEl.innerText = connected ? "연결됨" : "연결 안 됨";
+    statusEl.className = `badge ${connected ? "text-bg-success" : "text-bg-secondary"}`;
+    loginBtn.classList.toggle("d-none", connected);
+    testBtn.classList.toggle("d-none", !connected);
+    disconnectBtn.classList.toggle("d-none", !connected);
+  } catch {
+    statusEl.innerText = "연결 상태 확인 실패";
+    statusEl.className = "badge text-bg-danger";
+  }
+}
+
+async function testKakaoMessage() {
+  try {
+    const response = await fetch("/auth/kakao/test-message", { method: "POST" });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || response.statusText);
+    }
+    alert("카카오톡 나와의 채팅방으로 테스트 메시지를 보냈습니다.");
+  } catch (error) {
+    alert("카카오톡 알림 테스트 실패: " + error.message);
+  }
+}
+
+async function disconnectKakao() {
+  try {
+    const response = await fetch("/auth/kakao/disconnect", { method: "POST" });
+    if (!response.ok) throw new Error(response.statusText);
+    await updateKakaoConnectionStatus();
+  } catch (error) {
+    alert("카카오 연결 해제 실패: " + error.message);
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderHistoryButtons();
+  updateKakaoConnectionStatus();
+
+  const callbackParams = new URLSearchParams(window.location.search);
+  if (callbackParams.get("kakao") === "connected") {
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+
+  const kakaoTestBtn = document.getElementById("kakao-test-btn");
+  if (kakaoTestBtn) {
+    kakaoTestBtn.addEventListener("click", testKakaoMessage);
+  }
+
+  const kakaoDisconnectBtn = document.getElementById("kakao-disconnect-btn");
+  if (kakaoDisconnectBtn) {
+    kakaoDisconnectBtn.addEventListener("click", disconnectKakao);
+  }
 
   const testBtn = document.getElementById("testSiren");
   if (testBtn) {
