@@ -1,4 +1,4 @@
-# SRT helper 
+# KTX helper
 <p>
     <img width="128" height="128" alt="image" src="https://github.com/user-attachments/assets/2f700449-a605-43fa-a2b2-bd3d7a2eb2e6">
 </p>
@@ -10,8 +10,8 @@
 
 ![2025-06-07 23;48;31](https://github.com/user-attachments/assets/510d5d27-50a4-4cf3-803b-e15a774c2cc7)
 
-매진된 SRT 표의 예매를 도와주는 파이썬 프로그램입니다.  
-PC 환경에서만 실행 가능합니다.  
+매진된 KTX 표의 예매를 도와주는 파이썬 프로그램입니다.
+PC 환경에서만 실행 가능합니다.
 
   
 ## 필요

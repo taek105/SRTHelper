@@ -12,7 +12,7 @@ KAKAO_TOKEN_ENDPOINT = "https://kauth.kakao.com/oauth/token"
 KAKAO_SCOPES_ENDPOINT = "https://kapi.kakao.com/v2/user/scopes"
 KAKAO_MEMO_ENDPOINT = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
 DEFAULT_REDIRECT_URI = "http://localhost:8000/auth/kakao/callback"
-DEFAULT_MESSAGE_LINK_URL = "https://etk.srail.kr"
+DEFAULT_MESSAGE_LINK_URL = "https://www.korail.com/ticket/reservation/list"
 REQUEST_TIMEOUT_SECONDS = 10
 TOKEN_EXPIRY_MARGIN_SECONDS = 60
 
@@ -56,7 +56,7 @@ def get_redirect_uri() -> str:
         or parsed_uri.path != "/auth/kakao/callback"
     ):
         raise KakaoConfigurationError(
-            "KAKAO_REDIRECT_URI는 SRTHelper의 카카오 콜백 주소여야 합니다: "
+            "KAKAO_REDIRECT_URI는 KTXHelper의 카카오 콜백 주소여야 합니다: "
             f"{DEFAULT_REDIRECT_URI}"
         )
     return redirect_uri
@@ -270,7 +270,7 @@ def get_valid_access_token() -> str:
         return refresh_access_token()
 
     raise KakaoConfigurationError(
-        "카카오 로그인이 필요합니다. SRTHelper 화면에서 카카오 로그인해 주세요."
+        "카카오 로그인이 필요합니다. KTXHelper 화면에서 카카오 로그인해 주세요."
     )
 
 
@@ -298,16 +298,16 @@ def build_booking_success_message(
     departure_date: str,
     departure_time: str,
 ) -> str:
-    """Build the text sent after SRT confirms a booking."""
+    """Build the text sent after KTX confirms a booking."""
     formatted_date = _format_departure_date(departure_date)
     formatted_time = (
         departure_time if ":" in departure_time else f"{departure_time}:00"
     )
     return (
-        "🚄 SRT 예매에 성공했습니다!\n"
+        "🚄 KTX 예매에 성공했습니다!\n"
         f"{from_station} → {to_station}\n"
         f"{formatted_date} {formatted_time} 이후 출발\n"
-        "10분 내에 결제해 주세요."
+        "코레일에 표시된 결제기한 내에 결제해 주세요."
     )
 
 
@@ -331,7 +331,7 @@ def send_kakao_message(
                 "web_url": message_link,
                 "mobile_web_url": message_link,
             },
-            "button_title": "SRT 확인하기",
+            "button_title": "KTX 확인하기",
         }
         result = _post_form(
             KAKAO_MEMO_ENDPOINT,

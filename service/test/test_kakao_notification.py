@@ -12,15 +12,16 @@ from service import kakao
 class KakaoNotificationTest(unittest.TestCase):
     def test_builds_booking_success_message(self):
         message = kakao.build_booking_success_message(
-            "수서",
+            "서울",
             "부산",
             "20260821",
             "08",
         )
 
-        self.assertIn("수서 → 부산", message)
+        self.assertIn("KTX 예매에 성공", message)
+        self.assertIn("서울 → 부산", message)
         self.assertIn("2026/08/21 08:00 이후 출발", message)
-        self.assertIn("10분 내에 결제", message)
+        self.assertIn("코레일에 표시된 결제기한 내에 결제", message)
 
     @patch.object(kakao.request, "urlopen")
     def test_sends_default_text_template_to_memo_api(self, urlopen):

@@ -87,7 +87,7 @@ def kakao_status() -> dict[str, bool]:
 def kakao_test_message() -> dict[str, bool]:
     if not is_kakao_connected():
         raise HTTPException(status_code=401, detail="카카오 로그인이 필요합니다.")
-    if not send_kakao_message("🚄 SRT Helper 카카오톡 알림 테스트입니다."):
+    if not send_kakao_message("🚄 KTX Helper 카카오톡 알림 테스트입니다."):
         raise HTTPException(
             status_code=502,
             detail="카카오톡 테스트 메시지를 보내지 못했습니다. 서버 로그를 확인해 주세요.",

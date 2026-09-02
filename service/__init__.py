@@ -1,1 +1,1 @@
-"""SRT service package."""
+"""KTX reservation service package."""

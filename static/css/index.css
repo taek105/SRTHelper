@@ -79,3 +79,97 @@
   border-color: #ead300;
   color: #191919;
 }
+
+.macro-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+}
+
+.macro-action-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.reserve-wait-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.reserve-wait-toggle .form-check-input {
+  float: none;
+  margin: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 1.15rem;
+}
+
+.reserve-phone-fields {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d9d9d9;
+  border-radius: 0.4rem;
+  background-color: #fff;
+}
+
+.reserve-phone-label {
+  margin-right: 0.25rem;
+  color: #333;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.reserve-phone-input {
+  width: 4.5rem;
+  height: 2.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #b8b8b8;
+  border-radius: 0.25rem;
+  background-color: #fff;
+  color: #222;
+  text-align: center;
+  outline: none;
+}
+
+.reserve-phone-prefix {
+  width: 3.8rem;
+}
+
+.reserve-phone-input:focus {
+  border-color: #0054a6;
+  box-shadow: 0 0 0 2px rgba(0, 84, 166, 0.16);
+}
+
+.reserve-phone-separator {
+  color: #777;
+}
+
+@media (max-width: 768px) {
+  .macro-action-bar {
+    align-items: flex-start;
+  }
+
+  .macro-action-controls {
+    flex: 1;
+  }
+
+  .reserve-phone-fields {
+    max-width: 100%;
+  }
+
+  .reserve-phone-label {
+    display: none;
+  }
+}
