@@ -17,3 +17,11 @@ class LoginFailedError(Exception):
 
 class BrowserWindowClosedError(Exception):
     pass
+
+
+class KorailAccessBlockedError(Exception):
+    pass
+
+
+class InvalidPhoneNumberError(Exception):
+    pass

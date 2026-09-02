@@ -1,13 +1,14 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-from dotenv import load_dotenv
 
 load_dotenv()
 
 from api.kakao.router import router as kakao_router
 from api.srt.router import api_router
+from service.ktx import KTX_STATIONS
 
 app = FastAPI()
 app.include_router(api_router)
@@ -15,17 +16,13 @@ app.include_router(kakao_router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-STATIONS = ["수서", "동탄", "평택지제", "천안아산", "오송", "대전",
-            "김천구미", "동대구", "경주", "울산(통도사)", "부산",
-            "공주", "익산", "정읍", "광주송정", "나주", "목포"]
-
 @app.get("/", response_class=HTMLResponse)
 def get_form(request: Request):
     return templates.TemplateResponse(
         name="index.html",
         request=request,
         context={
-            "station_list": STATIONS
+            "station_list": KTX_STATIONS
         })
 
 if __name__ == "__main__":

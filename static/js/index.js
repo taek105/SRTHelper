@@ -134,7 +134,16 @@ fetchBtn.addEventListener("click", async () => {
     const res = await fetch(`/schedule?${params.toString()}`, {
       method: "GET"
     });
-    if (!res.ok) throw new Error(res.statusText);
+    if (!res.ok) {
+      let message = res.statusText;
+      try {
+        const error = await res.json();
+        message = error.detail || message;
+      } catch {
+        // JSON 응답이 아니면 HTTP 상태 메시지를 사용한다.
+      }
+      throw new Error(message);
+    }
 
     const data = await res.json();
     renderSchedule(data);
@@ -245,7 +254,40 @@ function populateDateDropdown() {
 }
 populateDateDropdown();
 
- // run 호출
+const reserveSwitch = document.getElementById('reserveSwitch');
+const reservePhoneFields = document.getElementById('reservePhoneFields');
+const reservePhoneInputs = [
+  document.getElementById('reservePhone1'),
+  document.getElementById('reservePhone2'),
+  document.getElementById('reservePhone3')
+];
+
+function syncReservePhoneFields() {
+  const enabled = reserveSwitch.checked;
+  reservePhoneFields.classList.toggle('d-none', !enabled);
+  reservePhoneFields.setAttribute('aria-hidden', String(!enabled));
+  reservePhoneInputs.forEach(input => {
+    input.disabled = !enabled;
+    input.required = enabled;
+  });
+  if (enabled) reservePhoneInputs[0].focus();
+}
+
+reserveSwitch.addEventListener('change', syncReservePhoneFields);
+reservePhoneInputs.forEach((input, index) => {
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/\D/g, '').slice(0, input.maxLength);
+    if (
+      input.value.length === input.maxLength &&
+      reservePhoneInputs[index + 1]
+    ) {
+      reservePhoneInputs[index + 1].focus();
+    }
+  });
+});
+syncReservePhoneFields();
+
+// run 호출
 document.getElementById('run-btn').addEventListener('click', runMacro);
 
 async function runMacro() {
@@ -255,13 +297,24 @@ async function runMacro() {
   const to_stn = document.getElementById('toStation').value;
   const date = document.getElementById('dateDropdown').value;
   const time = document.getElementById('time').value;
-  const reserve = document.getElementById('reserveSwitch').checked;
+  const reserve = reserveSwitch.checked;
+  const reservationPhoneParts = reservePhoneInputs.map(input => input.value);
   const seatsEls = Array.from(document.querySelectorAll('input[name="seats"]:checked'));
   const allSeats = Array.from(document.querySelectorAll('input[name="seats"]'));
   const seats = seatsEls.map(el => allSeats.indexOf(el) + 1);
 
   if (![login_id, login_psw, from_stn, to_stn, date, time].every(Boolean) || seats.length === 0) {
     return alert('모든 필드를 채우고 열차를 최소 하나 선택하세요.');
+  }
+  if (
+    reserve &&
+    (
+      !/^\d{3}$/.test(reservationPhoneParts[0]) ||
+      !/^\d{4}$/.test(reservationPhoneParts[1]) ||
+      !/^\d{4}$/.test(reservationPhoneParts[2])
+    )
+  ) {
+    return alert('예약대기 연락처를 010-0000-0000 형식으로 입력해주세요.');
   }
 
   const params = new URLSearchParams();
@@ -272,6 +325,9 @@ async function runMacro() {
   params.append('date', date);
   params.append('time', time);
   params.append('reserve', reserve);
+  if (reserve) {
+    params.append('reservation_phone', reservationPhoneParts.join(''));
+  }
   seats.forEach(s => params.append('seats', s));
 
   try {
@@ -295,7 +351,7 @@ async function runMacro() {
       triggerAlarmPopup({
         title: '🚀 예매 알림',
         messages: [
-          '10분 내에 결제하셔야 예매가 확정됩니다.'
+          '코레일에 표시된 결제기한 내에 결제하셔야 예매가 확정됩니다.'
         ]
       });
     } else {
@@ -401,9 +457,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (testBtn) {
     testBtn.addEventListener("click", () => {
       triggerAlarmPopup({
-        title: "🛎 싸이렌 테스트",
+        title: "🛎 사이렌 테스트",
         messages: [
-          "10분 내에 결제하지 않으면 예매가 취소됩니다.",
+          "코레일에 표시된 결제기한 내에 결제해 주세요.",
           "충분히 들을 수 있게 볼륨을 조절해 주세요."
         ]
       });
