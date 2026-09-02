@@ -255,7 +255,7 @@ def wait_for_waiting_queue(driver):
     """Wait until the queue clears and a KORAIL result (including no-data) exists."""
     queue_detected = False
 
-    def schedule_is_ready(current_driver):
+    def _schedule_is_ready(current_driver):
         nonlocal queue_detected
         queue_visible, ready_element_count = get_schedule_page_state(current_driver)
         if queue_visible:
@@ -267,7 +267,7 @@ def wait_for_waiting_queue(driver):
         driver,
         WAITING_QUEUE_TIMEOUT,
         poll_frequency=WAITING_QUEUE_POLL_FREQUENCY,
-    ).until(schedule_is_ready)
+    ).until(_schedule_is_ready)
     return queue_detected
 
 
@@ -399,9 +399,9 @@ class KTX:
         self.search_url = build_search_url(dpt_stn, arr_stn, dpt_dt, dpt_tm)
         self.is_booked = False
         self.cnt_refresh = 0
-        self.check_input()
+        self._check_input()
 
-    def check_input(self):
+    def _check_input(self):
         if not str(self.dpt_dt).isnumeric():
             raise InvalidDateFormatError("날짜는 숫자로만 이루어져야 합니다.")
         if len(str(self.dpt_dt)) != 8:
@@ -426,11 +426,11 @@ class KTX:
                 phone_number[7:11],
             )
 
-    def set_log_info(self, login_id, login_psw):
+    def _set_log_info(self, login_id, login_psw):
         self.login_id = login_id
         self.login_psw = login_psw
 
-    def run_driver(self):
+    def _run_driver(self):
         driver_path = install_arm_chromedriver()
         try:
             self.driver = uc.Chrome(
@@ -443,7 +443,7 @@ class KTX:
                 headless=False,
             )
 
-    def login(self):
+    def _login(self):
         self.driver.get(LOGIN_URL)
         wait = WebDriverWait(self.driver, LOGIN_WAIT_TIMEOUT)
         login_id = wait.until(EC.element_to_be_clickable((By.ID, "id")))
@@ -459,8 +459,8 @@ class KTX:
         ).click()
         return self.driver
 
-    def check_login(self):
-        def is_logged_in(driver):
+    def _check_login(self):
+        def _is_logged_in(driver):
             logout_elements = driver.find_elements(
                 By.XPATH,
                 "//a[normalize-space()='로그아웃'] | "
@@ -469,7 +469,7 @@ class KTX:
             return bool(logout_elements) and "/login" not in driver.current_url
 
         try:
-            WebDriverWait(self.driver, LOGIN_WAIT_TIMEOUT).until(is_logged_in)
+            WebDriverWait(self.driver, LOGIN_WAIT_TIMEOUT).until(_is_logged_in)
         except TimeoutException as exc:
             raise LoginFailedError(
                 "코레일 로그인 성공 여부를 확인할 수 없습니다. "
@@ -477,7 +477,7 @@ class KTX:
             ) from exc
         return True
 
-    def go_search(self):
+    def _go_search(self):
         self.driver.get(self.search_url)
         print("KTX를 조회합니다")
         print(
@@ -512,14 +512,14 @@ class KTX:
             "[.//div[contains(@class, 'type_tckRelay_03')]]"
         )
 
-        def visible_notice(driver):
+        def _visible_notice(driver):
             for notice in driver.find_elements(By.XPATH, notice_xpath):
                 if notice.is_displayed():
                     return notice
             return False
 
         try:
-            notice = WebDriverWait(self.driver, timeout).until(visible_notice)
+            notice = WebDriverWait(self.driver, timeout).until(_visible_notice)
         except TimeoutException:
             return False
 
@@ -532,18 +532,18 @@ class KTX:
         except ElementClickInterceptedException:
             self.driver.execute_script("arguments[0].click();", confirm_button)
 
-        def notice_closed(_driver):
+        def _notice_closed(_driver):
             try:
                 return not notice.is_displayed()
             except StaleElementReferenceException:
                 return True
 
-        WebDriverWait(self.driver, 5).until(notice_closed)
+        WebDriverWait(self.driver, 5).until(_notice_closed)
         print("열차 이용안내 확인")
         return True
 
     def _click_reservation_button(self, button_text):
-        def matching_button(driver):
+        def _matching_button(driver):
             buttons = driver.find_elements(By.CSS_SELECTOR, "button.reservbtn")
             return next(
                 (
@@ -556,7 +556,7 @@ class KTX:
                 False,
             )
 
-        button = WebDriverWait(self.driver, 15).until(matching_button)
+        button = WebDriverWait(self.driver, 15).until(_matching_button)
         try:
             button.click()
         except ElementClickInterceptedException:
@@ -631,7 +631,7 @@ class KTX:
 
         wait.until(EC.invisibility_of_element_located(popup_title))
 
-    def book_ticket(self, standard_seat, i):
+    def _book_ticket(self, standard_seat, i):
         row = self._get_result_row(i)
         standard_box = _find_standard_seat_box(row) if row is not None else None
         if not _is_bookable_seat(standard_box):
@@ -645,7 +645,7 @@ class KTX:
         print("KTX 예약 완료")
         return True
 
-    def refresh_result(self):
+    def _refresh_result(self):
         try:
             self.driver.refresh()
             wait_for_waiting_queue(self.driver)
@@ -657,7 +657,7 @@ class KTX:
             self.driver.get(self.search_url)
             wait_for_waiting_queue(self.driver)
 
-    def reserve_ticket(self, reservation, i):
+    def _reserve_ticket(self, reservation, i):
         row = self._get_result_row(i)
         standard_box = _find_standard_seat_box(row) if row is not None else None
         if not _is_waiting_seat(standard_box):
@@ -672,7 +672,7 @@ class KTX:
         print("KTX 예약 대기 완료")
         return True
 
-    def check_result(self):
+    def _check_result(self):
         wait = WebDriverWait(self.driver, RESULT_WAIT_TIMEOUT)
         while not self.is_booked:
             wait.until(
@@ -692,23 +692,23 @@ class KTX:
                     standard_seat = "매진"
                     reservation = "매진"
 
-                if self.book_ticket(standard_seat, i):
+                if self._book_ticket(standard_seat, i):
                     return True
-                if self.reserve_waiting and self.reserve_ticket(reservation, i):
+                if self.reserve_waiting and self._reserve_ticket(reservation, i):
                     return True
 
             time.sleep(randint(1, 2))
-            self.refresh_result()
+            self._refresh_result()
         return True
 
     def run(self, login_id, login_psw):
         try:
-            self.run_driver()
-            self.set_log_info(login_id, login_psw)
-            self.login()
-            self.check_login()
-            self.go_search()
-            self.check_result()
+            self._run_driver()
+            self._set_log_info(login_id, login_psw)
+            self._login()
+            self._check_login()
+            self._go_search()
+            self._check_result()
             return self.is_booked
         except (NoSuchWindowException, InvalidSessionIdException) as exc:
             error_message = "브라우저 창이 닫혀 매크로를 종료합니다."
@@ -731,7 +731,7 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
             except ValueError:
                 continue
     finally:
-        time.sleep(1.5)
+        time.sleep(0.7)
         driver.quit()
     return items
 
