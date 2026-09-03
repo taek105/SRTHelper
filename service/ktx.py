@@ -24,7 +24,6 @@ from service.exceptions import (
     BrowserWindowClosedError,
     InvalidDateError,
     InvalidDateFormatError,
-    InvalidPhoneNumberError,
     KorailAccessBlockedError,
     LoginFailedError,
 )
@@ -44,6 +43,9 @@ SCHEDULE_NO_DATA_SELECTOR = "#tab_tab_info1 .tck_confirm_no-data"
 SCHEDULE_READY_SELECTOR = (
     f"{SCHEDULE_RESULT_SELECTOR}, {SCHEDULE_NO_DATA_SELECTOR}"
 )
+_SEAT_STATUS_BOOKABLE = "bookable"
+_SEAT_STATUS_WAITING = "waiting"
+_SEAT_STATUS_UNAVAILABLE = "unavailable"
 WAITING_QUEUE_SELECTORS = (
     "#NetFunnel_Loading_Popup",
     "[id^='NetFunnel_Loading_Popup_']",
@@ -271,36 +273,58 @@ def wait_for_waiting_queue(driver):
     return queue_detected
 
 
-def _element_classes(element):
-    return set((element.get_attribute("class") or "").split())
+def _get_standard_seat_info(driver, row):
+    """Find and classify the standard-seat box in one WebDriver command."""
+    if row is None:
+        return {"box": None, "status": _SEAT_STATUS_UNAVAILABLE}
 
+    return driver.execute_script(
+        """
+        const boxes = Array.from(arguments[0].querySelectorAll('.price_box'));
+        const box = boxes.find(
+            (candidate) => (candidate.textContent || '').includes('일반실')
+        ) || boxes.find(
+            (candidate) => candidate.classList.contains('wait')
+                || candidate.classList.contains('sold_out_wait')
+                || candidate.classList.contains('yms_wait')
+                || (candidate.textContent || '').includes('예약대기')
+        ) || boxes[0] || null;
 
-def _find_standard_seat_box(row):
-    boxes = row.find_elements(By.CSS_SELECTOR, ".price_box")
-    for box in boxes:
-        if "일반실" in box.text:
-            return box
-    return boxes[0] if boxes else None
+        if (!box) {
+            return {box: null, status: 'unavailable'};
+        }
 
+        const classes = box.classList;
+        const text = box.textContent || '';
+        const waitingClasses = ['wait', 'sold_out_wait', 'yms_wait'];
+        if (
+            waitingClasses.some((className) => classes.contains(className))
+            || text.includes('예약대기')
+        ) {
+            return {box, status: 'waiting'};
+        }
 
-def _is_bookable_seat(box):
-    if box is None:
-        return False
-    classes = _element_classes(box)
-    blocked = {
-        "sold_out", "sold_out_wait", "sold_out_seat", "lack_seat",
-        "btn-disabled", "no-data",
-    }
-    return "gen" in classes and not classes.intersection(blocked)
-
-
-def _is_waiting_seat(box):
-    if box is None:
-        return False
-    classes = _element_classes(box)
-    return bool(
-        classes.intersection({"wait", "sold_out_wait", "yms_wait"})
-        or "예약대기" in box.text
+        const blockedClasses = [
+            'sold_out',
+            'sold_out_wait',
+            'sold_out_seat',
+            'lack_seat',
+            'btn-disabled',
+            'no-data',
+            'wait',
+            'yms_wait',
+        ];
+        if (
+            classes.contains('gen')
+            && !blockedClasses.some(
+                (className) => classes.contains(className)
+            )
+        ) {
+            return {box, status: 'bookable'};
+        }
+        return {box, status: 'unavailable'};
+        """,
+        row,
     )
 
 
@@ -393,8 +417,6 @@ class KTX:
         self.dpt_tm = dpt_tm
         self.target_index = target_index
         self.reserve_waiting = reserve_waiting
-        self.reservation_phone = reservation_phone
-        self.reservation_phone_parts = None
         self.driver = None
         self.search_url = build_search_url(dpt_stn, arr_stn, dpt_dt, dpt_tm)
         self.is_booked = False
@@ -413,18 +435,6 @@ class KTX:
             raise InvalidDateError(
                 "날짜가 잘못 되었습니다. YYYYMMDD 형식으로 입력해주세요."
             ) from exc
-
-        if self.reserve_waiting:
-            phone_number = re.sub(r"\D", "", self.reservation_phone or "")
-            if not re.fullmatch(r"\d{11}", phone_number):
-                raise InvalidPhoneNumberError(
-                    "예약대기 연락처를 010-0000-0000 형식으로 입력해주세요."
-                )
-            self.reservation_phone_parts = (
-                phone_number[:3],
-                phone_number[3:7],
-                phone_number[7:11],
-            )
 
     def _set_log_info(self, login_id, login_psw):
         self.login_id = login_id
@@ -488,7 +498,6 @@ class KTX:
         print(f"{target_indexes} KTX를 예매합니다.")
         print(f"예약 대기 사용: {self.reserve_waiting}")
         wait_for_waiting_queue(self.driver)
-        time.sleep(0.5)
 
     def _get_result_row(self, index):
         rows = self.driver.find_elements(By.CSS_SELECTOR, SCHEDULE_RESULT_SELECTOR)
@@ -502,58 +511,65 @@ class KTX:
             clickable.click()
         except ElementClickInterceptedException:
             self.driver.execute_script("arguments[0].click();", clickable)
-        self._dismiss_optional_train_notice()
 
-    def _dismiss_optional_train_notice(self, timeout=2):
-        """Close an optional train information popup regardless of its text."""
-        notice_xpath = (
-            "//div[contains(@class, 'layerWrap')]"
-            "[.//h1[normalize-space()='이용안내']]"
-            "[.//div[contains(@class, 'type_tckRelay_03')]]"
-        )
+    def _click_popup_button(self, button_text, timeout):
+        popup_xpath = "//div[contains(@class, 'layerWrap')]"
 
-        def _visible_notice(driver):
-            for notice in driver.find_elements(By.XPATH, notice_xpath):
-                if notice.is_displayed():
-                    return notice
+        def _visible_button(driver):
+            for popup in driver.find_elements(By.XPATH, popup_xpath):
+                if not popup.is_displayed():
+                    continue
+                for button in popup.find_elements(By.TAG_NAME, "button"):
+                    if (
+                        button.is_displayed()
+                        and button.is_enabled()
+                        and button.text.strip() == button_text
+                    ):
+                        return button
             return False
 
+        button = WebDriverWait(self.driver, timeout).until(_visible_button)
         try:
-            notice = WebDriverWait(self.driver, timeout).until(_visible_notice)
-        except TimeoutException:
-            return False
-
-        confirm_button = notice.find_element(
-            By.XPATH,
-            ".//button[normalize-space()='확인']",
-        )
-        try:
-            confirm_button.click()
+            button.click()
         except ElementClickInterceptedException:
-            self.driver.execute_script("arguments[0].click();", confirm_button)
+            self.driver.execute_script("arguments[0].click();", button)
 
-        def _notice_closed(_driver):
+        def _popup_closed(_driver):
             try:
-                return not notice.is_displayed()
+                return not button.is_displayed()
             except StaleElementReferenceException:
                 return True
 
-        WebDriverWait(self.driver, 5).until(_notice_closed)
+        WebDriverWait(self.driver, 5).until(_popup_closed)
+
+    def _dismiss_optional_train_notice(self, timeout=2):
+        try:
+            self._click_popup_button("확인", timeout)
+        except TimeoutException:
+            return False
+
         print("열차 이용안내 확인")
         return True
 
     def _click_reservation_button(self, button_text):
         def _matching_button(driver):
-            buttons = driver.find_elements(By.CSS_SELECTOR, "button.reservbtn")
-            return next(
-                (
-                    button
-                    for button in buttons
-                    if button.is_displayed()
-                    and button.is_enabled()
-                    and button_text in button.text
-                ),
-                False,
+            return driver.execute_script(
+                """
+                const buttonText = arguments[0];
+                return Array.from(
+                    document.querySelectorAll('button.reservbtn')
+                ).find((button) => {
+                    const style = window.getComputedStyle(button);
+                    const isVisible = style.display !== 'none'
+                        && style.visibility !== 'hidden'
+                        && Number(style.opacity) !== 0
+                        && button.getClientRects().length > 0;
+                    return isVisible
+                        && !button.disabled
+                        && (button.textContent || '').includes(buttonText);
+                }) || null;
+                """,
+                button_text,
             )
 
         button = WebDriverWait(self.driver, 15).until(_matching_button)
@@ -561,85 +577,20 @@ class KTX:
             button.click()
         except ElementClickInterceptedException:
             self.driver.execute_script("arguments[0].click();", button)
-        self._dismiss_optional_train_notice()
 
     def _wait_for_reservation_detail(self):
         WebDriverWait(self.driver, RESULT_WAIT_TIMEOUT).until(
             lambda driver: RESERVATION_DETAIL_PATH in driver.current_url
         )
 
-    def _ensure_checkbox_selected(self, wait, checkbox_id):
-        checkbox = wait.until(
-            EC.presence_of_element_located((By.ID, checkbox_id))
-        )
-        if checkbox.is_selected():
-            return checkbox
-
-        label = wait.until(
-            EC.element_to_be_clickable(
-                (By.CSS_SELECTOR, f"label[for='{checkbox_id}']")
-            )
-        )
-        try:
-            label.click()
-        except ElementClickInterceptedException:
-            self.driver.execute_script("arguments[0].click();", label)
-
-        wait.until(
-            lambda driver: driver.find_element(By.ID, checkbox_id).is_selected()
-        )
-        return checkbox
-
-    def _fill_phone_part(self, wait, element_id, value):
-        phone_input = wait.until(
-            EC.visibility_of_element_located((By.ID, element_id))
-        )
-        phone_input.clear()
-        slow_send_keys(phone_input, value)
-        wait.until(
-            lambda driver: driver.find_element(By.ID, element_id).get_attribute(
-                "value"
-            )
-            == value
-        )
-
     def _submit_reservation_wait(self):
-        wait = WebDriverWait(self.driver, 20)
-        popup_title = (By.XPATH, "//h1[normalize-space()='예약대기 신청']")
-        wait.until(EC.visibility_of_element_located(popup_title))
+        self._click_popup_button("대기신청", 20)
 
-        self._ensure_checkbox_selected(wait, "phoneNumChangeChecked")
-        for index, phone_part in enumerate(
-            self.reservation_phone_parts,
-            start=1,
-        ):
-            self._fill_phone_part(wait, f"phoneNumberNo{index}", phone_part)
-        self._ensure_checkbox_selected(wait, "agreePersonnelInfoChecked")
-
-        apply_button_xpath = (
-            "//h1[normalize-space()='예약대기 신청']"
-            "/ancestor::div[contains(@class, 'layerWrap')]"
-            "//button[normalize-space()='대기신청']"
-        )
-        apply_button = wait.until(
-            EC.element_to_be_clickable((By.XPATH, apply_button_xpath))
-        )
-        try:
-            apply_button.click()
-        except ElementClickInterceptedException:
-            self.driver.execute_script("arguments[0].click();", apply_button)
-
-        wait.until(EC.invisibility_of_element_located(popup_title))
-
-    def _book_ticket(self, standard_seat, i):
-        row = self._get_result_row(i)
-        standard_box = _find_standard_seat_box(row) if row is not None else None
-        if not _is_bookable_seat(standard_box):
-            return False
-
+    def _book_ticket(self, standard_box):
         print("KTX 일반실 예매 가능 클릭")
         self._click_seat_box(standard_box)
         self._click_reservation_button("예매")
+        self._dismiss_optional_train_notice()
         self._wait_for_reservation_detail()
         self.is_booked = True
         print("KTX 예약 완료")
@@ -647,26 +598,20 @@ class KTX:
 
     def _refresh_result(self):
         try:
+            time.sleep(random.uniform(0.3, 0.6))
             self.driver.refresh()
             wait_for_waiting_queue(self.driver)
             self.cnt_refresh += 1
             print(f"새로고침 {self.cnt_refresh}회")
-            time.sleep(random.uniform(0.5, 1.5))
         except StaleElementReferenceException:
             print("요소가 더 이상 유효하지 않음. 다시 조회합니다.")
             self.driver.get(self.search_url)
             wait_for_waiting_queue(self.driver)
 
-    def _reserve_ticket(self, reservation, i):
-        row = self._get_result_row(i)
-        standard_box = _find_standard_seat_box(row) if row is not None else None
-        if not _is_waiting_seat(standard_box):
-            return False
-
+    def _apply_for_reservation_wait(self, standard_box):
         print("KTX 예약 대기 신청")
         self._click_seat_box(standard_box)
         self._click_reservation_button("예약대기신청")
-        self._wait_for_reservation_detail()
         self._submit_reservation_wait()
         self.is_booked = True
         print("KTX 예약 대기 완료")
@@ -683,22 +628,26 @@ class KTX:
             for i in self.target_index:
                 try:
                     row = self._get_result_row(i)
-                    standard_box = (
-                        _find_standard_seat_box(row) if row is not None else None
+                    seat_info = _get_standard_seat_info(
+                        self.driver,
+                        row,
                     )
-                    standard_seat = standard_box.text if standard_box else "매진"
-                    reservation = standard_seat
+                    standard_box = seat_info["box"]
+                    seat_status = seat_info["status"]
                 except StaleElementReferenceException:
-                    standard_seat = "매진"
-                    reservation = "매진"
+                    standard_box = None
+                    seat_status = _SEAT_STATUS_UNAVAILABLE
 
-                if self._book_ticket(standard_seat, i):
-                    return True
-                if self.reserve_waiting and self._reserve_ticket(reservation, i):
-                    return True
+                if seat_status == _SEAT_STATUS_BOOKABLE:
+                    return self._book_ticket(standard_box)
+                if (
+                    self.reserve_waiting
+                    and seat_status == _SEAT_STATUS_WAITING
+                ):
+                    return self._apply_for_reservation_wait(standard_box)
 
-            time.sleep(randint(1, 2))
             self._refresh_result()
+
         return True
 
     def run(self, login_id, login_psw):
@@ -731,7 +680,7 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
             except ValueError:
                 continue
     finally:
-        time.sleep(0.7)
+        time.sleep(0.3)
         driver.quit()
     return items
 

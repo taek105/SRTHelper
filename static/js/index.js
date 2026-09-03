@@ -255,37 +255,6 @@ function populateDateDropdown() {
 populateDateDropdown();
 
 const reserveSwitch = document.getElementById('reserveSwitch');
-const reservePhoneFields = document.getElementById('reservePhoneFields');
-const reservePhoneInputs = [
-  document.getElementById('reservePhone1'),
-  document.getElementById('reservePhone2'),
-  document.getElementById('reservePhone3')
-];
-
-function syncReservePhoneFields() {
-  const enabled = reserveSwitch.checked;
-  reservePhoneFields.classList.toggle('d-none', !enabled);
-  reservePhoneFields.setAttribute('aria-hidden', String(!enabled));
-  reservePhoneInputs.forEach(input => {
-    input.disabled = !enabled;
-    input.required = enabled;
-  });
-  if (enabled) reservePhoneInputs[0].focus();
-}
-
-reserveSwitch.addEventListener('change', syncReservePhoneFields);
-reservePhoneInputs.forEach((input, index) => {
-  input.addEventListener('input', () => {
-    input.value = input.value.replace(/\D/g, '').slice(0, input.maxLength);
-    if (
-      input.value.length === input.maxLength &&
-      reservePhoneInputs[index + 1]
-    ) {
-      reservePhoneInputs[index + 1].focus();
-    }
-  });
-});
-syncReservePhoneFields();
 
 // run 호출
 document.getElementById('run-btn').addEventListener('click', runMacro);
@@ -298,23 +267,12 @@ async function runMacro() {
   const date = document.getElementById('dateDropdown').value;
   const time = document.getElementById('time').value;
   const reserve = reserveSwitch.checked;
-  const reservationPhoneParts = reservePhoneInputs.map(input => input.value);
   const seatsEls = Array.from(document.querySelectorAll('input[name="seats"]:checked'));
   const allSeats = Array.from(document.querySelectorAll('input[name="seats"]'));
   const seats = seatsEls.map(el => allSeats.indexOf(el) + 1);
 
   if (![login_id, login_psw, from_stn, to_stn, date, time].every(Boolean) || seats.length === 0) {
     return alert('모든 필드를 채우고 열차를 최소 하나 선택하세요.');
-  }
-  if (
-    reserve &&
-    (
-      !/^\d{3}$/.test(reservationPhoneParts[0]) ||
-      !/^\d{4}$/.test(reservationPhoneParts[1]) ||
-      !/^\d{4}$/.test(reservationPhoneParts[2])
-    )
-  ) {
-    return alert('예약대기 연락처를 010-0000-0000 형식으로 입력해주세요.');
   }
 
   const params = new URLSearchParams();
@@ -325,9 +283,6 @@ async function runMacro() {
   params.append('date', date);
   params.append('time', time);
   params.append('reserve', reserve);
-  if (reserve) {
-    params.append('reservation_phone', reservationPhoneParts.join(''));
-  }
   seats.forEach(s => params.append('seats', s));
 
   try {
