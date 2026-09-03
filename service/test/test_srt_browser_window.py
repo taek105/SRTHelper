@@ -11,7 +11,6 @@ from api.srt.endpoint import srt_router
 from service import ktx as ktx_module
 from service.exceptions import (
     BrowserWindowClosedError,
-    InvalidPhoneNumberError,
     KorailAccessBlockedError,
 )
 
@@ -89,7 +88,6 @@ class BrowserWindowApiTest(unittest.TestCase):
                 date="20260814",
                 time="00",
                 reserve=False,
-                reservation_phone=None,
                 seats=[1],
             )
 
@@ -119,29 +117,6 @@ class BrowserWindowApiTest(unittest.TestCase):
 
         self.assertEqual(429, raised.exception.status_code)
         self.assertEqual("코레일 자동화 제한", raised.exception.detail)
-
-    @patch.object(
-        srt_router,
-        "run_macro_logic",
-        side_effect=InvalidPhoneNumberError("예약대기 연락처 오류"),
-    )
-    def test_post_run_returns_unprocessable_phone_number(self, _run_macro):
-        with self.assertRaises(HTTPException) as raised:
-            srt_router.post_run(
-                login_id="login-id",
-                login_psw="login-password",
-                from_station="서울",
-                to_station="부산",
-                date="20260814",
-                time="00",
-                reserve=True,
-                reservation_phone="0101234",
-                seats=[1],
-            )
-
-        self.assertEqual(422, raised.exception.status_code)
-        self.assertEqual("예약대기 연락처 오류", raised.exception.detail)
-
 
 if __name__ == "__main__":
     unittest.main()

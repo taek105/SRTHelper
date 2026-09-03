@@ -407,7 +407,6 @@ class KTX:
         dpt_tm,
         target_index,
         reserve_waiting=False,
-        reservation_phone=None,
     ):
         self.login_id = None
         self.login_psw = None

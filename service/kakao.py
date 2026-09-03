@@ -227,8 +227,7 @@ def exchange_authorization_code(code: str) -> dict:
     )
     if not token_response.get("access_token"):
         raise KakaoApiError("카카오 토큰 응답에 access_token이 없습니다.")
-    consent_response = get_talk_message_consent(token_response["access_token"])
-    token_response["user_id"] = consent_response.get("id")
+    get_talk_message_consent(token_response["access_token"])
     token_response["talk_message_agreed"] = True
     return save_token_data(token_response)
 

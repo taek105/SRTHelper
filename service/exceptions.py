@@ -21,7 +21,3 @@ class BrowserWindowClosedError(Exception):
 
 class KorailAccessBlockedError(Exception):
     pass
-
-
-class InvalidPhoneNumberError(Exception):
-    pass

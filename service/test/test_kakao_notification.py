@@ -119,7 +119,6 @@ class KakaoOAuthTest(unittest.TestCase):
         get_consent.return_value = {"id": 123456789}
         expected_tokens = {
             **token_response,
-            "user_id": 123456789,
             "talk_message_agreed": True,
         }
         save_token_data.return_value = expected_tokens
@@ -150,7 +149,7 @@ class KakaoOAuthTest(unittest.TestCase):
         save_token_data.assert_called_once_with(expected_tokens)
 
     @patch.object(kakao, "_get_json")
-    def test_verifies_talk_message_consent_and_user_id(self, get_json):
+    def test_verifies_talk_message_consent(self, get_json):
         get_json.return_value = {
             "id": 123456789,
             "scopes": [

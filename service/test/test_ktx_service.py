@@ -1,11 +1,10 @@
 import unittest
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 from urllib.parse import parse_qs, urlparse
 
 from selenium.webdriver.common.by import By
 
 from service import ktx
-from service.exceptions import InvalidPhoneNumberError
 
 
 class KtxSearchUrlTest(unittest.TestCase):
@@ -111,88 +110,6 @@ class KtxOptionalNoticeTest(unittest.TestCase):
         self.ktx.driver.find_elements.return_value = []
 
         self.assertFalse(self.ktx._dismiss_optional_train_notice(timeout=0))
-
-
-class KtxReservationWaitingFormTest(unittest.TestCase):
-    def setUp(self):
-        self.ktx = ktx.KTX(
-            dpt_stn="서울",
-            arr_stn="부산",
-            dpt_dt="20260910",
-            dpt_tm="08",
-            target_index=[1],
-            reserve_waiting=True,
-            reservation_phone="010-2270-5172",
-        )
-        self.ktx.driver = MagicMock()
-
-    def test_splits_formatted_phone_number_for_korail_inputs(self):
-        self.assertEqual(
-            ("010", "2270", "5172"),
-            self.ktx.reservation_phone_parts,
-        )
-
-    def test_rejects_invalid_phone_number(self):
-        with self.assertRaisesRegex(
-            InvalidPhoneNumberError,
-            "010-0000-0000",
-        ):
-            ktx.KTX(
-                dpt_stn="서울",
-                arr_stn="부산",
-                dpt_dt="20260910",
-                dpt_tm="08",
-                target_index=[1],
-                reserve_waiting=True,
-                reservation_phone="010-1234",
-            )
-
-    @patch.object(ktx, "slow_send_keys")
-    def test_fills_phone_part_one_character_at_a_time(self, slow_send_keys):
-        wait = MagicMock()
-        phone_input = MagicMock()
-        wait.until.side_effect = [phone_input, True]
-
-        self.ktx._fill_phone_part(wait, "phoneNumberNo2", "2270")
-
-        phone_input.clear.assert_called_once_with()
-        slow_send_keys.assert_called_once_with(phone_input, "2270")
-
-    def test_checks_hidden_checkbox_through_its_label(self):
-        wait = MagicMock()
-        checkbox = MagicMock()
-        checkbox.is_selected.return_value = False
-        label = MagicMock()
-        wait.until.side_effect = [checkbox, label, True]
-
-        self.ktx._ensure_checkbox_selected(wait, "phoneNumChangeChecked")
-
-        label.click.assert_called_once_with()
-
-    @patch.object(ktx, "WebDriverWait")
-    def test_submits_waiting_form_with_phone_and_consent(self, web_driver_wait):
-        wait = web_driver_wait.return_value
-        apply_button = MagicMock()
-        wait.until.side_effect = [MagicMock(), apply_button, True]
-        self.ktx._ensure_checkbox_selected = MagicMock()
-        self.ktx._fill_phone_part = MagicMock()
-
-        self.ktx._submit_reservation_wait()
-
-        self.ktx._ensure_checkbox_selected.assert_has_calls(
-            [
-                call(wait, "phoneNumChangeChecked"),
-                call(wait, "agreePersonnelInfoChecked"),
-            ]
-        )
-        self.ktx._fill_phone_part.assert_has_calls(
-            [
-                call(wait, "phoneNumberNo1", "010"),
-                call(wait, "phoneNumberNo2", "2270"),
-                call(wait, "phoneNumberNo3", "5172"),
-            ]
-        )
-        apply_button.click.assert_called_once_with()
 
 
 if __name__ == "__main__":

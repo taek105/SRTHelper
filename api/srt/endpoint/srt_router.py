@@ -3,7 +3,6 @@ from fastapi import APIRouter, Form, HTTPException, Query
 from api.srt.controller.srt_controller import run_get_schedule, run_macro_logic
 from service.exceptions import (
     BrowserWindowClosedError,
-    InvalidPhoneNumberError,
     KorailAccessBlockedError,
 )
 
@@ -19,7 +18,6 @@ def post_run(
     date: str = Form(...),
     time: str = Form(...),
     reserve: bool = Form(False),
-    reservation_phone: str | None = Form(None),
     seats: list[int] = Form(default_factory=list),  # noqa: B008
 ) -> bool:
     try:
@@ -32,14 +30,11 @@ def post_run(
             dpt_tm=time,
             target=seats,
             want_reserve=reserve,
-            reservation_phone=reservation_phone,
         )
     except BrowserWindowClosedError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except KorailAccessBlockedError as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
-    except InvalidPhoneNumberError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 

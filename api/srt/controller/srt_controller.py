@@ -11,7 +11,6 @@ def run_macro_logic(
     dpt_tm: str,
     target: list[int],
     want_reserve: bool,
-    reservation_phone: str | None = None,
 ) -> bool:
 
     ktx = KTX(
@@ -21,7 +20,6 @@ def run_macro_logic(
         dpt_tm,
         target,
         want_reserve,
-        reservation_phone,
     )
     is_booked = ktx.run(login_id, login_psw)
 
