@@ -1,4 +1,3 @@
-from service.kakao import notify_booking_success
 from service.ktx import KTX, get_schedule
 
 
@@ -21,17 +20,7 @@ def run_macro_logic(
         target,
         want_reserve,
     )
-    is_booked = ktx.run(login_id, login_psw)
-
-    if is_booked:
-        notify_booking_success(
-            from_station=dpt_stn,
-            to_station=arr_stn,
-            departure_date=dpt_dt,
-            departure_time=dpt_tm,
-        )
-
-    return is_booked
+    return ktx.run(login_id, login_psw)
     
     
 def run_get_schedule(dpt_stn, arr_stn, date, tm):

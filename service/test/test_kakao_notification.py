@@ -2,8 +2,9 @@ import json
 import os
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
-from urllib import parse
+from urllib import error, parse
 from unittest.mock import MagicMock, patch
 
 from service import kakao
@@ -23,8 +24,9 @@ class KakaoNotificationTest(unittest.TestCase):
         self.assertIn("2026/08/21 08:00 이후 출발", message)
         self.assertIn("코레일에 표시된 결제기한 내에 결제", message)
 
+    @patch.object(kakao, "log_event")
     @patch.object(kakao.request, "urlopen")
-    def test_sends_default_text_template_to_memo_api(self, urlopen):
+    def test_sends_default_text_template_to_memo_api(self, urlopen, log_event):
         response = MagicMock()
         response.read.return_value = b'{"result_code": 0}'
         response.__enter__.return_value = response
@@ -53,9 +55,19 @@ class KakaoNotificationTest(unittest.TestCase):
             api_request,
             timeout=kakao.REQUEST_TIMEOUT_SECONDS,
         )
+        log_event.assert_called_once_with(
+            "KAKAO_MESSAGE_SENT",
+            message_type="GENERAL",
+            result="MESSAGE_SENT",
+        )
 
+    @patch.object(kakao, "log_event")
     @patch.object(kakao.request, "urlopen")
-    def test_skips_request_when_access_token_is_missing(self, urlopen):
+    def test_skips_request_when_access_token_is_missing(
+        self,
+        urlopen,
+        log_event,
+    ):
         with (
             patch.dict(os.environ, {}, clear=True),
             patch.object(kakao, "load_token_data", return_value={}),
@@ -64,6 +76,33 @@ class KakaoNotificationTest(unittest.TestCase):
 
         self.assertFalse(sent)
         urlopen.assert_not_called()
+        log_event.assert_called_once_with(
+            "KAKAO_MESSAGE_FAILED",
+            message_type="GENERAL",
+            failure_code="NOT_CONNECTED",
+            failure_reason="카카오 로그인이 필요합니다.",
+        )
+
+    @patch.object(kakao.request, "urlopen")
+    def test_does_not_include_kakao_response_body_in_api_error(self, urlopen):
+        urlopen.side_effect = error.HTTPError(
+            kakao.KAKAO_TOKEN_ENDPOINT,
+            401,
+            "Unauthorized",
+            {},
+            BytesIO(b'{"refresh_token":"must-not-be-logged"}'),
+        )
+
+        with self.assertRaises(kakao.KakaoApiError) as raised:
+            kakao._post_form(
+                kakao.KAKAO_TOKEN_ENDPOINT,
+                {"refresh_token": "another-secret"},
+            )
+
+        message = str(raised.exception)
+        self.assertIn("HTTP 401", message)
+        self.assertNotIn("must-not-be-logged", message)
+        self.assertNotIn("another-secret", message)
 
 
 class KakaoOAuthTest(unittest.TestCase):

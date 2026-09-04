@@ -79,8 +79,13 @@ class KakaoRouterTest(unittest.TestCase):
         )
         self.assertNotIn("set-cookie", response.headers)
 
+    @patch.object(kakao_router, "log_event")
     @patch.object(kakao_router, "exchange_authorization_code")
-    def test_callback_exchanges_code_after_state_validation(self, exchange_code):
+    def test_callback_exchanges_code_after_state_validation(
+        self,
+        exchange_code,
+        log_event,
+    ):
         request = make_request(
             "/auth/kakao/callback",
             cookie="kakao_oauth_state=csrf-state",
@@ -96,8 +101,10 @@ class KakaoRouterTest(unittest.TestCase):
         self.assertEqual(303, response.status_code)
         self.assertEqual("/?kakao=connected", response.headers["location"])
         exchange_code.assert_called_once_with("authorization-code")
+        log_event.assert_called_once_with("KAKAO_CONNECTED", result="CONNECTED")
 
-    def test_callback_rejects_mismatched_state(self):
+    @patch.object(kakao_router, "log_event")
+    def test_callback_rejects_mismatched_state(self, log_event):
         request = make_request(
             "/auth/kakao/callback",
             cookie="kakao_oauth_state=expected-state",
@@ -112,6 +119,11 @@ class KakaoRouterTest(unittest.TestCase):
             )
 
         self.assertEqual(400, raised.exception.status_code)
+        log_event.assert_called_once_with(
+            "KAKAO_CONNECT_FAILED",
+            failure_code="INVALID_OAUTH_STATE",
+            failure_reason="유효하지 않은 카카오 로그인 요청입니다.",
+        )
 
     @patch.object(kakao_router, "send_kakao_message", return_value=True)
     @patch.object(kakao_router, "is_kakao_connected", return_value=True)
@@ -119,7 +131,22 @@ class KakaoRouterTest(unittest.TestCase):
         result = kakao_router.kakao_test_message()
 
         self.assertEqual({"sent": True}, result)
-        send_message.assert_called_once()
+        send_message.assert_called_once_with(
+            "🚄 KTX Helper 카카오톡 알림 테스트입니다.",
+            message_type="TEST",
+        )
+
+    @patch.object(kakao_router, "log_event")
+    @patch.object(kakao_router, "clear_token_data")
+    def test_logs_disconnect(self, clear_token_data, log_event):
+        result = kakao_router.kakao_disconnect()
+
+        self.assertEqual({"connected": False}, result)
+        clear_token_data.assert_called_once_with()
+        log_event.assert_called_once_with(
+            "KAKAO_DISCONNECTED",
+            result="DISCONNECTED",
+        )
 
 
 if __name__ == "__main__":

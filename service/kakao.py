@@ -1,11 +1,11 @@
 import json
-import logging
 import os
 import time
 from datetime import datetime
 from pathlib import Path
 from urllib import error, parse, request
 
+from core.event_logging import log_error, log_event
 
 KAKAO_AUTHORIZE_ENDPOINT = "https://kauth.kakao.com/oauth/authorize"
 KAKAO_TOKEN_ENDPOINT = "https://kauth.kakao.com/oauth/token"
@@ -16,14 +16,16 @@ DEFAULT_MESSAGE_LINK_URL = "https://www.korail.com/ticket/reservation/list"
 REQUEST_TIMEOUT_SECONDS = 10
 TOKEN_EXPIRY_MARGIN_SECONDS = 60
 
-logger = logging.getLogger(__name__)
-
 
 class KakaoError(Exception):
     pass
 
 
 class KakaoConfigurationError(KakaoError):
+    pass
+
+
+class KakaoTokenExpiredError(KakaoConfigurationError):
     pass
 
 
@@ -83,7 +85,7 @@ def load_token_data() -> dict:
     try:
         return json.loads(token_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        logger.error("저장된 카카오 토큰을 읽지 못했습니다: %s", exc)
+        log_error("저장된 카카오 토큰을 읽지 못했습니다.", exc_info=True)
         return {}
 
 
@@ -147,13 +149,15 @@ def _post_form(
         ) as response:
             return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
-        response_body = exc.read().decode("utf-8", errors="replace")
+        exc.read()
         raise KakaoApiError(
-            f"카카오 API 요청 실패 (HTTP {exc.code}): {response_body}",
+            f"카카오 API 요청에 실패했습니다 (HTTP {exc.code}).",
             status_code=exc.code,
         ) from exc
-    except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise KakaoApiError(f"카카오 API 요청 실패: {exc}") from exc
+    except (error.URLError, TimeoutError) as exc:
+        raise KakaoApiError("카카오 API에 연결하지 못했습니다.") from exc
+    except json.JSONDecodeError as exc:
+        raise KakaoApiError("카카오 API 응답을 처리하지 못했습니다.") from exc
 
 
 def _get_json(
@@ -177,13 +181,15 @@ def _get_json(
         ) as response:
             return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
-        response_body = exc.read().decode("utf-8", errors="replace")
+        exc.read()
         raise KakaoApiError(
-            f"카카오 API 요청 실패 (HTTP {exc.code}): {response_body}",
+            f"카카오 API 요청에 실패했습니다 (HTTP {exc.code}).",
             status_code=exc.code,
         ) from exc
-    except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise KakaoApiError(f"카카오 API 요청 실패: {exc}") from exc
+    except (error.URLError, TimeoutError) as exc:
+        raise KakaoApiError("카카오 API에 연결하지 못했습니다.") from exc
+    except json.JSONDecodeError as exc:
+        raise KakaoApiError("카카오 API 응답을 처리하지 못했습니다.") from exc
 
 
 def _token_request_form(**values: str) -> dict[str, str]:
@@ -268,6 +274,11 @@ def get_valid_access_token() -> str:
     if token_data.get("refresh_token"):
         return refresh_access_token()
 
+    if access_token:
+        raise KakaoTokenExpiredError(
+            "카카오 로그인이 만료되었습니다. 다시 로그인해 주세요."
+        )
+
     raise KakaoConfigurationError(
         "카카오 로그인이 필요합니다. KTXHelper 화면에서 카카오 로그인해 주세요."
     )
@@ -315,6 +326,7 @@ def send_kakao_message(
     *,
     access_token: str | None = None,
     link_url: str | None = None,
+    message_type: str = "GENERAL",
 ) -> bool:
     """Send a text message to the logged-in user's KakaoTalk chat."""
     try:
@@ -342,15 +354,81 @@ def send_kakao_message(
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-    except KakaoError as exc:
-        logger.error("카카오톡 알림 전송에 실패했습니다: %s", exc)
+    except KakaoTokenExpiredError:
+        log_event(
+            "KAKAO_MESSAGE_FAILED",
+            message_type=message_type,
+            failure_code="TOKEN_EXPIRED",
+            failure_reason="카카오 로그인이 만료되었습니다.",
+        )
+        log_error("카카오 액세스 토큰이 만료되었습니다.", exc_info=True)
+        return False
+    except KakaoConfigurationError:
+        log_event(
+            "KAKAO_MESSAGE_FAILED",
+            message_type=message_type,
+            failure_code="NOT_CONNECTED",
+            failure_reason="카카오 로그인이 필요합니다.",
+        )
+        log_error("카카오톡 메시지를 보낼 연결 정보가 없습니다.", exc_info=True)
+        return False
+    except KakaoApiError as exc:
+        failure_code = "TOKEN_EXPIRED" if exc.status_code == 401 else "API_ERROR"
+        failure_reason = (
+            "카카오 로그인이 만료되었습니다."
+            if failure_code == "TOKEN_EXPIRED"
+            else "카카오 API 요청에 실패했습니다."
+        )
+        log_event(
+            "KAKAO_MESSAGE_FAILED",
+            message_type=message_type,
+            failure_code=failure_code,
+            failure_reason=failure_reason,
+            kakao_http_status=exc.status_code,
+        )
+        log_error(
+            "카카오톡 메시지 발송 요청에 실패했습니다.",
+            exc_info=True,
+            kakao_http_status=exc.status_code,
+        )
+        return False
+    except KakaoError:
+        log_event(
+            "KAKAO_MESSAGE_FAILED",
+            message_type=message_type,
+            failure_code="API_ERROR",
+            failure_reason="카카오 메시지 발송에 실패했습니다.",
+        )
+        log_error("카카오톡 메시지 발송에 실패했습니다.", exc_info=True)
+        return False
+    except Exception:
+        log_event(
+            "KAKAO_MESSAGE_FAILED",
+            message_type=message_type,
+            failure_code="INTERNAL_ERROR",
+            failure_reason="카카오 메시지 발송 중 서버 오류가 발생했습니다.",
+        )
+        log_error(
+            "카카오톡 메시지 발송 중 처리되지 않은 오류가 발생했습니다.",
+            exc_info=True,
+        )
         return False
 
-    if result.get("result_code") != 0:
-        logger.error("카카오톡 알림 전송에 실패했습니다: %s", result)
+    if not isinstance(result, dict) or result.get("result_code") != 0:
+        log_event(
+            "KAKAO_MESSAGE_FAILED",
+            message_type=message_type,
+            failure_code="API_ERROR",
+            failure_reason="카카오 API가 메시지 발송을 거부했습니다.",
+        )
+        log_error("카카오 API가 메시지 발송을 거부했습니다.")
         return False
 
-    logger.info("카카오톡 예매 성공 알림을 전송했습니다.")
+    log_event(
+        "KAKAO_MESSAGE_SENT",
+        message_type=message_type,
+        result="MESSAGE_SENT",
+    )
     return True
 
 
@@ -366,4 +444,4 @@ def notify_booking_success(
         departure_date,
         departure_time,
     )
-    return send_kakao_message(message)
+    return send_kakao_message(message, message_type="BOOKING_SUCCESS")
