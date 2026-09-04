@@ -23,6 +23,6 @@ def run_macro_logic(
     return ktx.run(login_id, login_psw)
     
     
-def run_get_schedule(dpt_stn, arr_stn, date, tm):
+def run_get_schedule(login_id, login_psw, dpt_stn, arr_stn, date, tm):
     
-    return get_schedule(dpt_stn, arr_stn, date, tm)
+    return get_schedule(login_id, login_psw, dpt_stn, arr_stn, date, tm)

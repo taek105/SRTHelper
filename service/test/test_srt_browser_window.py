@@ -109,6 +109,8 @@ class BrowserWindowApiTest(unittest.TestCase):
     ):
         with self.assertRaises(HTTPException) as raised:
             srt_router.get_schedule(
+                login_id="login-id",
+                login_psw="login-password",
                 date="20260814",
                 time="00",
                 from_station="서울",

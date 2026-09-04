@@ -117,12 +117,16 @@ function hideLoading() {
 
 fetchBtn.addEventListener("click", async () => {
   const { date, time, from_station, to_station } = getSearchPayload();
+  const login_id = document.getElementById("loginField").value;
+  const login_psw = document.getElementById("pwField").value;
 
-  if (!date || !time || !from_station || !to_station) {
-    return alert("날짜·시간·출발역·도착역 모두 선택해주세요.");
+  if (!login_id || !login_psw || !date || !time || !from_station || !to_station) {
+    return alert("로그인 정보와 날짜·시간·출발역·도착역을 모두 입력해주세요.");
   }
 
   const params = new URLSearchParams({
+    login_id,
+    login_psw,
     date,
     time,
     from_station,
@@ -131,8 +135,9 @@ fetchBtn.addEventListener("click", async () => {
 
   showLoading();
   try {
-    const res = await fetch(`/schedule?${params.toString()}`, {
-      method: "GET"
+    const res = await fetch("/schedule", {
+      method: "POST",
+      body: params
     });
     if (!res.ok) {
       let message = res.statusText;

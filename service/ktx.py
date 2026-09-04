@@ -439,6 +439,12 @@ class KTX:
         self.login_id = login_id
         self.login_psw = login_psw
 
+    def _start_authenticated_session(self, login_id, login_psw):
+        self._run_driver()
+        self._set_log_info(login_id, login_psw)
+        self._login()
+        self._check_login()
+
     def _run_driver(self):
         driver_path = install_arm_chromedriver()
         try:
@@ -486,8 +492,12 @@ class KTX:
             ) from exc
         return True
 
-    def _go_search(self):
+    def _open_search_page(self):
         self.driver.get(self.search_url)
+        wait_for_waiting_queue(self.driver)
+
+    def _go_search(self):
+        self._open_search_page()
         print("KTX를 조회합니다")
         print(
             f"출발역:{self.dpt_stn} , 도착역:{self.arr_stn}\n"
@@ -496,7 +506,6 @@ class KTX:
         target_indexes = ", ".join(f"{i}번" for i in self.target_index)
         print(f"{target_indexes} KTX를 예매합니다.")
         print(f"예약 대기 사용: {self.reserve_waiting}")
-        wait_for_waiting_queue(self.driver)
 
     def _get_result_row(self, index):
         rows = self.driver.find_elements(By.CSS_SELECTOR, SCHEDULE_RESULT_SELECTOR)
@@ -651,10 +660,7 @@ class KTX:
 
     def run(self, login_id, login_psw):
         try:
-            self._run_driver()
-            self._set_log_info(login_id, login_psw)
-            self._login()
-            self._check_login()
+            self._start_authenticated_session(login_id, login_psw)
             self._go_search()
             self._check_result()
             return self.is_booked
@@ -664,15 +670,20 @@ class KTX:
             raise BrowserWindowClosedError(error_message) from exc
 
 
-def get_schedule(dpt_stn, arr_stn, date, tm):
+def get_schedule(login_id, login_psw, dpt_stn, arr_stn, date, tm):
     items = []
-    driver_path = install_arm_chromedriver()
-    driver = uc.Chrome(driver_executable_path=driver_path, headless=False)
+    ktx = KTX(
+        dpt_stn=dpt_stn,
+        arr_stn=arr_stn,
+        dpt_dt=date,
+        dpt_tm=tm,
+        target_index=[],
+    )
 
     try:
-        driver.get(build_search_url(dpt_stn, arr_stn, date, tm))
-        wait_for_waiting_queue(driver)
-        snapshots = _load_schedule_snapshots(driver)
+        ktx._start_authenticated_session(login_id, login_psw)
+        ktx._open_search_page()
+        snapshots = _load_schedule_snapshots(ktx.driver)
         for snapshot in snapshots:
             try:
                 items.append(_extract_schedule_item(snapshot))
@@ -680,7 +691,8 @@ def get_schedule(dpt_stn, arr_stn, date, tm):
                 continue
     finally:
         time.sleep(0.3)
-        driver.quit()
+        if ktx.driver is not None:
+            ktx.driver.quit()
     return items
 
 

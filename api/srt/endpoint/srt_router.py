@@ -1,7 +1,7 @@
 from time import perf_counter
 from uuid import uuid4
 
-from fastapi import APIRouter, Form, HTTPException, Query
+from fastapi import APIRouter, Form, HTTPException
 
 from api.srt.controller.srt_controller import run_get_schedule, run_macro_logic
 from core.event_logging import log_error, log_event, reset_run_id, set_run_id
@@ -119,14 +119,25 @@ def _log_macro_failure(
     )
 
 
-@router.get("/schedule", response_model=None)
+@router.post("/schedule", response_model=None)
 def get_schedule(
-    date: str = Query(..., description="출발일자 YYYYMMDD"),
-    time: str = Query(..., description="출발시간 HHMM or HH:MM"),
-    from_station: str = Query(..., description="출발역 이름"),
-    to_station: str = Query(..., description="도착역 이름"),
+    login_id: str = Form(...),
+    login_psw: str = Form(...),
+    date: str = Form(...),
+    time: str = Form(...),
+    from_station: str = Form(...),
+    to_station: str = Form(...),
 ):
     try:
-        return run_get_schedule(from_station, to_station, date, time)
+        return run_get_schedule(
+            login_id,
+            login_psw,
+            from_station,
+            to_station,
+            date,
+            time,
+        )
     except KorailAccessBlockedError as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except LoginFailedError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc

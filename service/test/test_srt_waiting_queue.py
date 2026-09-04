@@ -156,24 +156,43 @@ class WaitingQueueCallSiteTest(unittest.TestCase):
         wait_for_queue.assert_called_once_with(self.driver)
 
     @patch.object(ktx_module.time, "sleep")
-    @patch.object(ktx_module, "wait_for_waiting_queue")
-    @patch.object(ktx_module.uc, "Chrome")
-    @patch.object(ktx_module, "install_arm_chromedriver")
+    @patch.object(ktx_module.KTX, "_open_search_page", autospec=True)
+    @patch.object(
+        ktx_module.KTX,
+        "_start_authenticated_session",
+        autospec=True,
+    )
     def test_get_schedule_waits_for_result(
         self,
-        install_chromedriver,
-        chrome,
-        wait_for_queue,
+        start_authenticated_session,
+        open_search_page,
         _sleep,
     ):
-        install_chromedriver.return_value = "/tmp/chromedriver"
-        driver = chrome.return_value
+        driver = MagicMock()
         driver.execute_script.return_value = []
 
-        result = ktx_module.get_schedule("서울", "부산", "20260814", "00")
+        def attach_driver(instance, _login_id, _login_psw):
+            instance.driver = driver
+
+        start_authenticated_session.side_effect = attach_driver
+
+        result = ktx_module.get_schedule(
+            "login-id",
+            "login-password",
+            "서울",
+            "부산",
+            "20260814",
+            "00",
+        )
 
         self.assertEqual([], result)
-        wait_for_queue.assert_called_once_with(driver)
+        authenticated_session = start_authenticated_session.call_args.args[0]
+        start_authenticated_session.assert_called_once_with(
+            authenticated_session,
+            "login-id",
+            "login-password",
+        )
+        open_search_page.assert_called_once_with(authenticated_session)
         driver.execute_script.assert_called_once()
         driver.find_elements.assert_not_called()
         driver.quit.assert_called_once_with()
