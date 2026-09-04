@@ -73,11 +73,42 @@ class JsonLineFormatter(logging.Formatter):
 
 
 class ErrorFormatter(logging.Formatter):
+    @staticmethod
+    def _exception_summary(record: logging.LogRecord) -> str | None:
+        if not record.exc_info:
+            return None
+
+        exception_type, exception, _traceback = record.exc_info
+        message = " ".join(str(exception).splitlines()).strip()
+        # Selenium exceptions may embed their own native stack trace in the
+        # exception message. Keep only the useful description.
+        message = message.split("Stacktrace:", 1)[0].strip()
+        if message:
+            return f"{exception_type.__name__}: {message}"
+        return exception_type.__name__
+
     def format(self, record: logging.LogRecord) -> str:
         request_id = getattr(record, "request_id", None) or "-"
         run_id = getattr(record, "run_id", None) or "-"
         record.correlation = f"request_id={request_id} run_id={run_id}"
-        return super().format(record)
+        exception_summary = self._exception_summary(record)
+
+        # The default logging formatter appends the complete traceback. It is
+        # mostly framework plumbing for HTTP errors, so log a compact summary
+        # instead without mutating the record for any other handlers.
+        original_exc_info = record.exc_info
+        original_exc_text = record.exc_text
+        record.exc_info = None
+        record.exc_text = None
+        try:
+            formatted = super().format(record)
+        finally:
+            record.exc_info = original_exc_info
+            record.exc_text = original_exc_text
+
+        if exception_summary:
+            return f"{formatted} exception={exception_summary}"
+        return formatted
 
 
 def _remove_expired_logs(log_dir: Path, today: date | None = None) -> None:

@@ -109,6 +109,33 @@ class EventLoggingTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(retained.exists())
         self.assertTrue(unrelated.exists())
 
+    def test_logs_exception_summary_without_full_traceback(self):
+        request_token = event_logging.set_request_id("request-123")
+        run_token = event_logging.set_run_id("run-456")
+        try:
+            try:
+                raise AttributeError("element is missing")
+            except AttributeError:
+                event_logging.log_error(
+                    "매크로 실행 중 오류가 발생했습니다.",
+                    exc_info=True,
+                )
+        finally:
+            event_logging.reset_run_id(run_token)
+            event_logging.reset_request_id(request_token)
+
+        for handler in event_logging.error_logger.handlers:
+            handler.flush()
+        contents = (self.log_dir / "error.log").read_text(encoding="utf-8")
+
+        self.assertIn("request_id=request-123 run_id=run-456", contents)
+        self.assertIn(
+            "exception=AttributeError: element is missing",
+            contents,
+        )
+        self.assertNotIn("Traceback (most recent call last)", contents)
+        self.assertNotIn('File "', contents)
+
 
 if __name__ == "__main__":
     unittest.main()
